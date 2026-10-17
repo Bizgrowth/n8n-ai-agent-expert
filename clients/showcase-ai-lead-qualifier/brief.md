@@ -65,4 +65,4 @@
 ## Summary & readiness
 A web-form lead is scored by an AI against a standard B2B rubric and routed: hot leads create a HubSpot task and a Slack alert, warm and cold leads are logged quietly, and uncertain results go to you for review. Everything is tagged DEMO and built inactive on your own n8n. **Ready for design? Yes**, once the open questions above are answered (the Slack channel and LLM choice are needed before build, not design). Showcase use only until the VPS is behind HTTPS.
 
-**Gate 1 — Owner approval:** [ ] approved on ____
+**Gate 1 — Owner approval:** [x] approved on 2026-10-17. Owner decision: HTTPS deferred; build on the current instance as Showcase only, synthetic data, no client data.
