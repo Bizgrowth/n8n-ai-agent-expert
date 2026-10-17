@@ -1,0 +1,8 @@
+# Never commit secrets or instance backups
+.env
+.env.*
+*.key
+*.pem
+credentials*.json
+n8n-backup*/
+node_modules/

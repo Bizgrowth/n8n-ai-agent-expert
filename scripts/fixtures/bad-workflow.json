@@ -1,0 +1,33 @@
+{
+  "name": "My test workflow",
+  "active": true,
+  "nodes": [
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": { "path": "open-hook", "httpMethod": "POST" }
+    },
+    {
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [200, 0],
+      "parameters": {
+        "url": "https://api.example.com/leads",
+        "headerParameters": { "parameters": [{ "name": "Authorization", "value": "Bearer FAKEFAKEFAKEFAKEFAKEFAKE1234567890" }] }
+      }
+    },
+    {
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 0],
+      "parameters": { "jsCode": "return items;" }
+    }
+  ],
+  "connections": {},
+  "pinData": { "Webhook": [{ "json": { "email": "fake@example.com" } }] },
+  "settings": {}
+}

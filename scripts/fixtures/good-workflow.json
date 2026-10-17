@@ -1,0 +1,49 @@
+{
+  "name": "ACME | Lead intake | Webhook → CRM contact | v1",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": { "content": "Purpose: sample fixture for the linter. Owner: TBD." }
+    },
+    {
+      "name": "Receive lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "parameters": { "path": "sample-lead", "httpMethod": "POST", "authentication": "headerAuth" },
+      "credentials": { "httpHeaderAuth": { "name": "Lead webhook header" } }
+    },
+    {
+      "name": "Clean fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [400, 0],
+      "parameters": {}
+    },
+    {
+      "name": "Create CRM contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [600, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "parameters": {},
+      "credentials": { "hubspotAppToken": { "name": "HubSpot demo" } }
+    }
+  ],
+  "connections": {
+    "Receive lead": { "main": [[{ "node": "Clean fields", "type": "main", "index": 0 }]] },
+    "Clean fields": { "main": [[{ "node": "Create CRM contact", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "errorWorkflow": "SHARED_ERROR_ALERT_WORKFLOW_ID",
+    "timezone": "UTC",
+    "executionTimeout": 300,
+    "saveDataErrorExecution": "all"
+  }
+}
