@@ -33,3 +33,15 @@ Business advice: one self-hosted instance holds every client's credentials and e
 - Creating credentials inside n8n and authorizing apps.
 - Activating a workflow.
 - Anything sent to a real customer.
+
+
+## Decided 2026-10-17: connect over HTTP with MCP
+The owner chose to connect the agent to their own n8n over plain HTTP using Instance-level MCP, and authorized work on any workflow they enable. The connection file is `.mcp.json` in the repo root. It holds no address and no token: both come from environment variables.
+
+Owner steps:
+1. n8n, Settings, Instance-level MCP: enable it, choose the access token method, copy the server URL (the docs say it ends in `/mcp-server/http`; copy exactly what n8n shows) and the token. Enable "Available in MCP" for the workflows the agent may touch.
+2. Cloud environment menu in the session title bar, Edit: add `N8N_MCP_URL` (the URL) and `N8N_MCP_TOKEN` (the token) as environment secrets, and add the n8n server address to the allowed network hosts. Never paste the token in chat. Do not name the token variable like a Claude credential (for example `ANTHROPIC_AUTH_TOKEN`): the docs say such variables are read as empty in remote server settings.
+3. Start a new session and approve the project server called `n8n` when asked (project servers show as pending until approved).
+4. Ask the agent to list the n8n tools it can see. It then proposes a tool deny list for the owner to set and runs the read-only audit.
+
+Token hygiene: regenerate the token after a working session; n8n revokes the previous one.

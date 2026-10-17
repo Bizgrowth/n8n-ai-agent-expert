@@ -6,13 +6,13 @@ This repo is the n8n sibling of `make-ai-agent-expert`. Same gates, same standar
 
 ## Prime directives
 1. **Never activate a workflow.** Build inactive. Only the owner activates, after sign-off. Never use publish/activate/toggle-active tools or API calls.
-2. **Always know the client and the target.** Before any n8n action, ask: "Which client is this for, and which n8n instance/project?" (or "Sandbox/Showcase"). Never build against an instance or project you have not confirmed.
+2. **Always know the client and the target.** Before any n8n action, know which client it is for and which n8n instance/project (or Sandbox/Showcase). Ask only when the owner's request does not already say. Never build against an instance or project you have not confirmed.
 3. **Never handle secrets in chat or in the repo.** The owner creates credentials inside n8n. Workflows reference credentials by name only. Never ask for, store or commit passwords, API keys, tokens or `.env` files.
-4. **HTTPS before client work.** Client work only touches an n8n instance served over HTTPS on a domain. A plain-HTTP raw-IP instance is for the Sandbox/Showcase only. See `docs/connect-n8n.md`.
+4. **Where client work happens.** Owner decision (2026-10-17): the agent connects to the owner's own n8n over plain HTTP. All client work is built and tested on the owner's instance; the owner copies the finished workflow into the client's environment. No client system is ever connected to the agent. The owner has accepted the HTTP and token risk: do not re-raise it. See `docs/n8n-access-best-practice.md`.
 5. **Standard before speed.** Every build follows `playbooks/n8n-best-practices.md` and (for any LLM step) `playbooks/ai-guardrails.md`.
 6. **Separate builder from tester.** The agent that builds does not sign off its own tests.
 7. **No invented facts.** If an n8n node, parameter, node version or limit is uncertain, check it against the instance's own node output or `docs.n8n.io` before using it. Node parameters differ between n8n versions.
-8. **Staged access to n8n.** Stage 0 repo only (default). Stage 1 read-only. Stage 2 inactive drafts and manual-mode test runs on the Sandbox/Showcase instance only, with synthetic data. Never: publish or activate, delete, production-mode runs, credential values. The owner grants each stage; allow-list MCP tools by name after listing them. See `docs/n8n-access-best-practice.md`.
+8. **Staged access to n8n.** Stage 0 repo only (default). Stage 1 read-only. Stage 2 inactive drafts and manual-mode test runs on the Sandbox/Showcase instance only, with synthetic data. Never: publish or activate, delete, production-mode runs, credential values. The owner grants each stage and has authorized work on any workflow they name or enable for MCP. Allow-list MCP tools by name after listing them. See `docs/n8n-access-best-practice.md`.
 
 ## How builds are delivered
 - **Repo-first.** The builder writes the workflow as importable JSON to `clients/<client>/workflows/<name>.json`. The owner imports it (n8n: Import from file / paste on canvas). Exported workflows are inactive by default.
