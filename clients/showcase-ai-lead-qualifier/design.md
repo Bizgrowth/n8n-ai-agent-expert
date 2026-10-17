@@ -458,4 +458,4 @@ Test set accuracy target: set after 10 labelled cases (owner labels the expected
 
 **Next step:** After you approve in plain words, the builder produces inactive workflow JSON for both workflows. The reviewer lints it, then a separate tester runs the cases above. Nothing is activated by the agent.
 
-**Gate 1b — Owner approval:** [ ] approved on ____ · Notes: ____
+**Gate 1b — Owner approval:** [x] approved on 2026-10-17 · Notes: owner approved the design and chose a plain Slack review message (no Send and Wait). Proposals (0.70 threshold, 70/40 cutoffs, cap 25, 1000 chars, one repair attempt, no sub-workflow) stand as approved defaults. Remaining open items (Slack channels, LLM provider, n8n version, DEMO property, time zone) are placeholders until the owner supplies them.
