@@ -14,7 +14,8 @@
         "width": 560,
         "height": 260,
         "content": "## SHARED | Error Alert | v1\n**Purpose:** one alert workflow for the whole instance. Any workflow that sets this as its Error Workflow posts here: workflow name, failing node, execution link, first line of the error. No lead data.\n**Owner:** AI Ops Expert owner. **Trigger:** Error Trigger (cannot be tested with a manual run; make a real workflow fail). **Version:** v1. **Last change:** 2026-10-17. **n8n version built on:** UNKNOWN.\n**Placeholder:** PLACEHOLDER_SLACK_ALERT_CHANNEL_ID. **Credential:** Slack - AI Ops Expert. **Built INACTIVE.** Does not need to be published to act as an Error Workflow."
-      }
+      },
+      "id": "4e350a2b-0c1a-466f-b58d-a8469ffe61a6"
     },
     {
       "name": "Workflow failed",
@@ -24,7 +25,8 @@
         0,
         100
       ],
-      "parameters": {}
+      "parameters": {},
+      "id": "00c58a51-f064-445d-9a28-76f111bfe99c"
     },
     {
       "name": "Prepare alert text",
@@ -66,7 +68,7 @@
             {
               "id": "c104",
               "name": "error_line",
-              "value": "={{ String(String($json.execution?.error?.message ?? $json.trigger?.error?.message ?? 'no message').split('\\n')[0] ?? '').replace(/https?:\\/\\/\\S+/gi,'[link removed]').replace(/www\\.\\S+/gi,'[link removed]').replace(/[@<>]/g,'').replace(/\\s+/g,' ').trim().slice(0,200) }}",
+              "value": "={{ String(String($json.execution?.error?.message ?? $json.trigger?.error?.message ?? 'no message').split('\\n')[0] ?? '').replace(/https?:\\/\\/\\S+/gi,'[link removed]').replace(/www\\.\\S+/gi,'[link removed]').replace(/\\b[\\w-]+(\\.[\\w-]+)*\\.[a-z]{2,}(\\/\\S*)?/gi,'[link removed]').replace(/[@<>*_~\\x60]/g,'').replace(/\\s+/g,' ').trim().slice(0,100) }}",
               "type": "string"
             }
           ]
@@ -74,7 +76,8 @@
         "includeOtherFields": false,
         "options": {}
       },
-      "notes": "If the trigger node itself failed, data arrives in a different shape (trigger.error...); fallbacks cover it."
+      "notes": "If the trigger node itself failed, data arrives in a different shape (trigger.error...); fallbacks cover it. The error line is cut to 100 characters with links, domains and mentions removed, because provider errors can echo a field value.",
+      "id": "ccc4617d-797e-4bc9-96a5-181e74b82224"
     },
     {
       "name": "Slack: tell the owner",
@@ -111,7 +114,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "onError": "stopWorkflow",
-      "notes": "UNVERIFIED - confirm on import: Slack node version 2.3 and parameter names taken from n8n source; confirm channel picker accepts the ID."
+      "notes": "UNVERIFIED - confirm on import: Slack node version 2.3 and parameter names taken from n8n source; confirm channel picker accepts the ID.",
+      "id": "9181d79f-2211-46cb-a2d1-cf23baef022c"
     }
   ],
   "connections": {
