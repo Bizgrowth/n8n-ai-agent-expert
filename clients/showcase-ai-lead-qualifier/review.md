@@ -1,5 +1,150 @@
 # Review: AI Lead Qualifier -> CRM (Showcase, SHOW-001)
 
+Contents: **Round 2** (this section, newest) then **Round 1** (unchanged, below).
+
+---
+
+# Round 2
+
+**Stage:** 4 Review, re-review · **Reviewer:** best-practice-reviewer (did not build this) · **Date:** 2026-10-17
+**Files reviewed:** `workflows/showcase-ai-lead-qualifier.json` (49 nodes incl. sticky note), `workflows/shared-error-alert.json` (4 nodes). Build-log claims were checked against the JSON, not trusted. Two parameter names were also checked against n8n's public source on GitHub (see section 5).
+**Nothing was modified, imported, activated or pushed. Make repo untouched.**
+
+## Verdict: APPROVE FOR QA
+
+No must-fix items remain. All round-1 blockers and high items are fixed in the JSON. One medium finding (N1, the claim row is never closed) and a few low ones are recommended; none stops the tester from starting, but N1 changes what QA should expect in the log table, so it is better fixed first (one node edit) or written into the test plan.
+
+**Plain-language summary for the owner:** The form data now flows through (the "every lead rejected" bug is gone), HubSpot save no longer depends on a pointless lookup, a failed task or Slack message no longer hides the hot-lead alert, and every run writes its log row before it is marked failed. The new "claim" row works as intended for duplicates and the daily cap, but it is never tidied up, so each lead ends with two rows in the log table. Safe to test; the tester needs to know that.
+
+---
+
+## R2.1 Lint results
+
+| File | Result |
+|---|---|
+| `showcase-ai-lead-qualifier.json` | OK, 0 must-fix, 0 warnings (13 of 13 PASS) |
+| `shared-error-alert.json` | OK, 0 must-fix, 0 warnings (13 of 13 PASS) |
+
+My own structural checks (throwaway scripts, not saved in the repo): both files parse; `active: false`; no pinData; every node has a unique `id`; every connection source and target exists; all `$('Node name')` references (both files) point to real nodes; the only nodes with no inbound main connection are the trigger and the four AI sub-nodes (Chat model 1/2, Answer format 1/2), which connect through `ai_languageModel` / `ai_outputParser`; every node set to `continueErrorOutput` (9 in workflow 1) has its error output wired; the Sanitiser regex (checked by running it on test strings) behaves as described in section R2.4.
+
+## R2.2 Round-1 findings F1 to F12
+
+| # | Finding | Status | Evidence in the JSON |
+|---|---|---|---|
+| F1 | Settings drops webhook body | **Fixed** | `Settings.includeOtherFields: true`, AND every field in `Clean the lead` now reads `$('Receive lead').first().json.body?.…` (13 expressions incl. `dedupe_key`); no `$json.body` is left anywhere. |
+| F2 | HubSpot custom property key | **Fixed** | `Create or update contact` uses `customPropertiesUi.customPropertiesValues` (7 properties). I independently confirmed the name in n8n's `Hubspot/V2/ContactDescription.ts`. QA must still see DEMO on the saved contact and that the 7 properties exist in HubSpot. |
+| F3 | "Find contact by email" blocks the save | **Fixed** | Node no longer exists. `Needs a review message first?` (false) and `Slack: needs your review` (success) both go straight to `Create or update contact`. |
+| F4a | Failed task hides the hot alert | **Fixed** | `Create follow-up task` error output -> `Note: task not created` -> `Slack: hot lead alert`. The alert text appends "task was NOT created" via `$('Note: task not created').isExecuted`. |
+| F4b | Slack failure skips the log row | **Fixed** | `Slack: needs your review` error -> `Note: review Slack failed` -> `Create or update contact`. `Slack: HubSpot save failed` and `Slack: hot lead alert` errors -> `Note: Slack failed` -> `Log decision`. `Log decision` -> `Did any step fail along the way?` -> `Alert owner: a step needs attention` (Stop and Error) or `All steps succeeded`. Log first, then fail the run. |
+| F5 | Dedupe/cap trust filters | **Fixed** (one point needs the instance) | `Is it a repeat?` now has 3 conditions: key not empty, `$json.dedupe_key === $('Clean the lead').first().json.dedupe_key`, `new Date($json.received_at).getTime() >= $now.minus({hours:24}).toMillis()`. `Daily AI limit reached?` recounts with `Number(r.ai_calls_used) > 0 && new Date(r.received_at).getTime() >= $now.startOf('day').toMillis()`. The string `"0"` filter on the number column remains as a pre-filter (builder's reason: spam rows could fill the 100-row limit). Only QA case 19 can prove it; a wrong pre-filter is also caught by the JS recount unless it returns nothing. |
+| F6 | Not concurrency-safe | **Partly** (works, but see N1) | `Claim this lead` inserts a `processing` row (`ai_calls_used: 0`, same `dedupe_key`) before the cap check and the AI call. It narrows the double-submit window as intended. Side effect: the row is never closed (N1). Cap still soft by burst size, documented in the sticky note. |
+| F7 | "HubSpot save failed" message | **Fixed** | Text now has `$execution.id`, tier, score, cleaned company/role and honest instructions (add by hand; re-send blocked 24 h). Run ends failed through the final Stop and Error, so the Error Workflow fires. |
+| F8 | Other fields not delimited | **Fixed** | `Prepare AI input` wraps role, size, budget, timeline, source in `<lead_fields>` and the message in `<lead_message>`; `s()` removes every `<` and `>`; system prompt SECURITY line names both tags. |
+| F9 | Bare domains clickable | **Fixed** | Added `/\b[\w-]+(\.[\w-]+)*\.[a-z]{2,}(\/\S*)?/gi` to `slack_reason`, `slack_company`, `slack_role` and `error_line`; also strips `@ < > * _ ~` and backtick. I ran it: `bit.ly/abc` removed, `<!channel>` and `@here` neutralised (no angle brackets, no `@`), no slow-down on long dotted strings. Cosmetic side effects in N4. |
+| F10 | Task due date, contact ID guard | **Fixed** | `dueDate` expression: weekday 1 to 4 -> +1 day, Fri +3, Sat +2, Sun +1, set 09:00 (checked by hand). `dueDate` is a required top-level parameter from node v2.2 (confirmed in `EngagementDescription.ts`). `Got a HubSpot contact ID?` skips the task when no `vid`/`id` and routes to `Note: task not created`. |
+| F11 | One Slack post per lead over the cap | **Open by owner decision** | Unchanged and documented (sticky note limit 3). Not a defect against the design the owner may accept. |
+| F12 | Misc | **Partly** (acceptable) | Done: prompt cutoffs built from `hot_min`/`warm_min` (`[HOT_MIN]`, `[WARM_MAX]`... replaced in both AI nodes, giving 70-100 / 40-69 / 0-39); repair prompt lists the rules; `error_line` cut to 100 chars; every node has an `id`. Documented, not changed: `model` in the log is a label (must be set equal to the chosen model); `ai_calls_used` can under-report by 1 after a Retry On Fail; unsalted hash. Still for the instance/handoff: record n8n version, tags by hand, rollback paragraph. |
+
+## R2.3 Trace of six synthetic leads through the revised JSON
+
+Common start: `Receive lead` -> `Settings` (keeps body, adds config) -> `Clean the lead` (reads `$('Receive lead')`, fine) -> `Is the lead usable?`. One item flows at all times, so every `.first()` is correct; no node relies on paired items. `$('Create or update contact')`, `$('Decision record')` and the `Note:` nodes are only read on paths where they have run, and the `try/catch` and `.isExecuted` patterns cover the paths where they have not.
+
+**1. Hot lead** (score 85, confidence 0.9, new email, under the cap)
+`Is the lead usable?` true -> `Seen this email recently?` (no match, `alwaysOutputData` gives an empty item) -> `Is it a repeat?` false (empty key) -> `Claim this lead` (insert, `processing`, 0 calls) -> `Count today's AI calls` -> `Combine today's rows` -> `Daily AI limit reached?` false -> `Prepare AI input` -> `AI score, attempt 1` -> `Check AI answer 1` true (7 checks, tier matches 70 cutoff) -> `Accept answer 1` (1 call) -> `Confident enough?` (0.9 >= 0.7) -> `Route by tier` hot -> `Mark: hot` -> `Decision record` -> `Needs a review message first?` false -> `Create or update contact` -> `Is it a hot lead?` true -> `Got a HubSpot contact ID?` true -> `Create follow-up task` -> `Slack: hot lead alert` -> `Log decision` -> `Did any step fail along the way?` false -> `All steps succeeded`. Result: ok. Slack text has only cleaned company/role, score, confidence, cleaned reason and a HubSpot link built from the portal ID and the ID HubSpot returned. `hubspot_task_created = yes`, `slack_sent = yes`.
+
+**2. Warm lead** (score 55, confidence 0.8)
+Same up to `Route by tier` warm -> `Mark: warm` -> `Decision record` -> `Needs a review message first?` false -> `Create or update contact` -> `Is it a hot lead?` false -> `Log decision` -> `All steps succeeded`. No Slack, no task (as designed). `slack_sent = no`. Ok.
+
+**3. Low-confidence lead** (confidence 0.5, or tier outside the 3 values)
+`Confident enough?` false (or `Route by tier` fallback "unexpected tier") -> `Mark: low confidence or odd tier` (status `review`) -> `Decision record` (`why_flagged` set) -> `Needs a review message first?` true -> `Slack: needs your review` -> `Create or update contact` -> not hot -> `Log decision` -> `All steps succeeded`. Ok. If the Slack post fails: `Note: review Slack failed` -> `Create or update contact` still runs -> `Log decision` -> `Did any step fail` true -> Stop and Error. Ok.
+
+**4. Invalid email lead** (`not-an-email`)
+`Is the lead usable?` false -> `Log rejected lead` (reason `invalid_email`, no email stored) -> end. Log failure goes to `Ignore log failure`. No AI call, no Slack, no HubSpot, no claim row (claim is after this check). Ok. Silent by design; mention to owner.
+
+**5. Duplicate** (same email, 5 minutes later)
+`Seen this email recently?` returns a row (either the `processing` claim row or the final row; both carry the key and are inside 24 h, so it does not matter which one `limit 1` returns) -> `Is it a repeat?` true (3 conditions) -> `Log duplicate` -> end. The duplicate row is written without a `dedupe_key`, so it does not extend the window. The check happens before `Claim this lead`, so the lead cannot match its own claim row. Ok. Not created in HubSpot; confirm with owner as in round 1.
+
+**6. Cap-reached lead** (25 rows today with `ai_calls_used > 0`)
+`Claim this lead` -> `Count` -> `Combine` -> `Daily AI limit reached?` true -> `Mark: AI limit reached` (status `cap_reached`, 0 calls) -> `Decision record` -> `Needs a review message first?` true -> `Slack: needs your review` ("Daily AI limit reached; saved without AI scoring") -> `Create or update contact` -> `Log decision` (0 calls) -> end. Ok. The claim row has `ai_calls_used 0` so it is never counted by the cap, even if the `"0"` pre-filter is ignored (the JS recount rechecks the number). The aggregated `rows` field rides along through `Mark:` (includeOtherFields true) but `Decision record` has `includeOtherFields: false`, so it is dropped. Ok.
+
+**Claim row regression check, answers to the specific questions**
+- Counted by the daily cap when the AI is not called? **No.** `ai_calls_used = 0` is excluded by the `gt 0` pre-filter and again by the JS recount.
+- Duplicate check matches its own claim row? **No.** The dedupe read runs before the claim insert in the same run. A later submission correctly matches it (that is the purpose).
+- Claim row left in a state that breaks dedupe or cap? **Not broken, but untidy (N1).** It stays `processing` forever; `Log decision` inserts a second row for the same `lead_id`. Dedupe and cap give correct answers with two rows per key. A run that dies after the claim leaves the email blocked for 24 h (documented).
+
+## R2.4 New findings, ranked by risk
+
+### N1 [MEDIUM] Claim row is never closed; every lead leaves two rows
+- **Where:** `Claim this lead` inserts a `processing` row. `Log decision` is also an **insert**, so each finished lead has a stale `processing` row plus its final row. The sticky-note recovery ("if a run crashes, delete the `processing` row") cannot be followed reliably: the owner cannot tell a crash leftover from a finished lead without comparing `lead_id` against final rows. Log counts also double (QA counting "rows per lead" will be wrong), and `limit 1` on the dedupe read returns an arbitrary one of the two rows.
+- **Change (preferred):** in `Log decision` switch the operation from insert to **update** the row where `lead_id` equals `$('Clean the lead').first().json.lead_id`, with the same column values. Then there is one row per lead, a `processing` row really means "unfinished", and you may add to `Is it a repeat?` that a `processing` row older than 10 minutes is not a repeat. Check the Data Table update filter syntax on import (UNVERIFIED).
+- **Fallback if update is not wanted:** leave as is, rename the claim status to `claim`, and add to the QA plan and handoff: "each lead has a claim row and a result row; a claim row with no result row sharing its `lead_id` is a crashed run".
+- **Proof only on import:** row counts after one test lead (expect 1 or 2 per the chosen option).
+
+### N2 [LOW-MEDIUM] A crash between claim and `Log decision` loses the lead for 24 hours
+- **Where:** `Count today's AI calls` and `Claim this lead` use "stop workflow" on failure. If `Count` fails after the claim, the Error Workflow alerts the owner, the lead is not saved anywhere, and re-sending the same email is blocked as a repeat. Loud, documented, and the alert fires, so acceptable for a showcase.
+- **Change:** none required. With N1 (update + stale-claim rule) this self-heals after 10 minutes. Otherwise keep the sticky-note instruction.
+
+### N3 [LOW] `Settings` now forwards the whole webhook payload including headers
+- **Where:** `Settings.includeOtherFields: true` passes `headers` (incl. the shared-secret header) to `Clean the lead`, which then drops it (`includeOtherFields: false`), so nothing downstream carries it. The Webhook node's own execution data already stores that header, because `saveDataSuccessExecution` is `all`. No new exposure.
+- **Change:** none. Optional: keep execution retention short (build-log step 8 already says so) and treat the webhook secret as low-strength (round 1, item 8).
+
+### N4 [LOW] Sanitiser is aggressive on normal text
+- **Where:** the new bare-domain rule turns `Acme.io`, `node.js`, or a sentence with no space after a full stop (`budget.The`) into `[link removed]`; `dana@example.com` becomes `dana[link removed]`. `!channel` / `here` remain as plain words (no brackets, no ping).
+- **Change:** none needed for safety. Optional: tell the tester so a "[link removed]" in company names is not logged as a bug. The same cleaned text goes into HubSpot `ai_reason` and the log `reason`, so those are cleaned too (intended).
+
+### N5 [LOW] Guardrail values confirmed unchanged
+`Settings`: `confidence_threshold 0.7`, `hot_min 70`, `warm_min 40`, `daily_ai_cap 25`, `max_message_chars 1000`; chat models `maxTokensToSample 300`, `temperature 0.1`; attempt 1 `retryOnFail` with 2 tries + one repair attempt with no retry = at most 3 calls; Check nodes still have 7 conditions each. Model cannot choose channels (from `Settings`), URLs (portal ID plus HubSpot-returned ID) or recipients. Raw message, email, full name and phone never reach Slack or the log table (Slack and log use lead ID, cleaned company/role, tier, score, confidence, cleaned reason; the log table has no email). Nothing weakened.
+
+### Minor (no change needed before QA)
+- `Mark: invalid AI answer` hard-codes `ai_calls_used: 2`; if attempt 1 failed through both of its Retry On Fail tries the true count is 3. Cap is counted in rows, so no effect on the cap; cost report under-counts slightly.
+- `Log decision` `model` column is still the Settings label, not the model actually used; documented on the node.
+- Duplicates still end with no HubSpot update and a rejected lead produces no Slack message; owner to confirm.
+
+## R2.5 The 20 UNVERIFIED nodes, judged again
+
+Count in the JSON: 19 in workflow 1, 1 in workflow 2 = 20 (the build log's 20 is right: `Find contact by email` removed, `Claim this lead` and `Did any step fail along the way?` added).
+
+| Node | Round-1 rating | Round-2 rating | Note |
+|---|---|---|---|
+| Clean the lead | OK | OK | `.hash('sha256')` still unproven; failure is loud. |
+| Log rejected lead, Log duplicate, Claim this lead | Watch | Watch | Data Table insert with empty `schema`; re-pick the table in the UI, then confirm the 7 to 9 mapped columns survive. Date column gets an ISO string. |
+| Seen this email recently?, Count today's AI calls | Watch | Watch (improved) | Filter behaviour still unproven, but a wrong filter no longer silently drops leads (key and date rechecked) or disables the cap (JS recount). "No match" with the cap filter would still turn the cap off: QA case 19. |
+| AI score 1 and 2, Chat models 1 and 2, Answer formats 1 and 2 | OK | OK | Result key `output` and chain 1.7 / Anthropic 1.3 parameter names still import-only. |
+| Slack: needs your review, Slack: HubSpot save failed, Slack: hot lead alert, Slack: tell the owner | OK | OK | `chat:write` and channel invite are owner steps; `otherOptions` keys import-only. |
+| Create or update contact | Likely break | **Watch** | Custom property key now correct (verified in source). Remaining risks: the 7 properties must exist in HubSpot with those internal names; credential scopes; `vid` is returned (source shows `responseData.vid` on the upsert endpoint). |
+| Create follow-up task | Likely break | **Watch** | `dueDate` and `contactIds` structure confirmed in source; task scopes and the engagement response only provable on the instance. Failure no longer hides the hot alert. |
+| Log decision | Watch | Watch | 18 mapped columns; `null` into number columns; `isExecuted` use in 2 columns. |
+| Did any step fail along the way? | (new) | Watch | Depends on `$('Node').isExecuted` in expressions; this is a documented expression property but is the one new construct. Failure is loud (error on this node). |
+
+## R2.6 What only an import into n8n can prove
+
+1. The two files import without errors (node typeVersions, `errorWorkflow` placeholder, all other node types).
+2. Credentials attach by name (webhook header, HubSpot, Slack, Anthropic).
+3. `.hash('sha256')` and `$('Node').isExecuted` evaluate on the instance version.
+4. Data Table: empty-`schema` inserts, ISO date into date columns, `eq`/`gte`/`gt` filters including the string `"0"` on a number column, null into number columns, `limit 1` behaviour with two rows per key (N1).
+5. The chain returns the parsed object under `output`, and the parser output passes the 7 checks.
+6. HubSpot: all 7 custom properties exist and save, DEMO is on the contact, `vid` is returned, task is created with a due date and association, scopes are sufficient.
+7. Slack: channel by ID, bot invited, `mrkdwn` and `unfurl_links` accepted; the text looks right.
+8. Webhook header auth rejects a missing or wrong header; Production URL is correct.
+9. The Error Workflow actually fires on the final Stop and Error and on a node failure, and its message has no lead data.
+10. Real cost per run for the chosen model; the "double-click" test; cap and dedupe behaviour against real rows.
+
+## R2.7 Wrap-up
+
+**What was done:** Re-linted both files (clean), verified F1 to F12 in the JSON, traced six leads node by node, re-checked the claim node, and found no blocker.
+
+**What needs the owner's decision:** (1) N1: update-in-place for the log row (my recommendation) or keep two rows per lead and document it; (2) F11, accept one Slack post per lead over the cap; (3) confirm duplicates do not touch HubSpot.
+
+**Next step:** Tester (not the builder) runs design section 15. Add to the plan: DEMO property on the saved contact; row count per lead (N1); double-click test; cap and dedupe on real rows; a forced failure to see the Error Workflow alert.
+
+**Verdict: APPROVE FOR QA**
+
+---
+
+# Round 1
+
+# Review: AI Lead Qualifier -> CRM (Showcase, SHOW-001)
+
 **Stage:** 4 Review · **Reviewer:** best-practice-reviewer (did not build this) · **Date:** 2026-10-17
 **Files reviewed:** `workflows/showcase-ai-lead-qualifier.json` (44 nodes), `workflows/shared-error-alert.json` (4 nodes), against `design.md` (Gate 1b approved), `build-log.md`, `playbooks/n8n-best-practices.md`, `playbooks/ai-guardrails.md`.
 **Nothing was modified, imported, activated or pushed.**
