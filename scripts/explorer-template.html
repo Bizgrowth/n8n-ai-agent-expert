@@ -1,0 +1,483 @@
+<title>Lead Qualifier Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a tabbed read-only map. Overview first, then the flow diagram with a detail panel, then tables for nodes, connections, rules, fields and setup. */
+:root {
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --bg: #F5F7F6; --surface: #FFFFFF; --surface-2: #EDF1EF; --ink: #15201E; --muted: #55635F; --line: #D6DDDA;
+  --accent: #0F6B66; --accent-ink: #FFFFFF; --accent-soft: #DAEEEB; --edge: #7B8A86;
+  --ok: #2A7A4B; --ok-soft: #DDF0E4; --warn: #8F5A00; --warn-soft: #FBEBCB; --bad: #B0342C; --bad-soft: #F8DDDA;
+  --c-trigger: #0F6B66; --c-prep: #62726E; --c-check: #3B54B0; --c-ai: #8247AB; --c-service: #AE5518; --c-log: #5E8527; --c-end: #80868B;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1514; --surface: #172120; --surface-2: #1F2B29; --ink: #E5ECEA; --muted: #9AA8A4; --line: #2C3836;
+    --accent: #53C4B9; --accent-ink: #0B1413; --accent-soft: #17332F; --edge: #6F807B;
+    --ok: #6CCB92; --ok-soft: #183226; --warn: #E8B24D; --warn-soft: #382B10; --bad: #F08A82; --bad-soft: #3A1B19;
+    --c-trigger: #53C4B9; --c-prep: #9AABA6; --c-check: #8EA2F2; --c-ai: #C39AE6; --c-service: #F0A06B; --c-log: #A3CC63; --c-end: #A2A9AE;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1514; --surface: #172120; --surface-2: #1F2B29; --ink: #E5ECEA; --muted: #9AA8A4; --line: #2C3836;
+  --accent: #53C4B9; --accent-ink: #0B1413; --accent-soft: #17332F; --edge: #6F807B;
+  --ok: #6CCB92; --ok-soft: #183226; --warn: #E8B24D; --warn-soft: #382B10; --bad: #F08A82; --bad-soft: #3A1B19;
+  --c-trigger: #53C4B9; --c-prep: #9AABA6; --c-check: #8EA2F2; --c-ai: #C39AE6; --c-service: #F0A06B; --c-log: #A3CC63; --c-end: #A2A9AE;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.app { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 20px; font-weight: 650; }
+h3 { font-size: 15px; font-weight: 650; }
+p { margin: 0; max-width: 68ch; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: 12.5px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header.top { display: flex; flex-direction: column; gap: 10px; }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+nav.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+nav.tabs button { font: inherit; font-weight: 600; font-size: 14px; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section.panel { display: flex; flex-direction: column; gap: 22px; }
+section.panel[hidden] { display: none; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stage { border-top: 3px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.stage b { font-size: 14px; }
+.stage.done { border-top-color: var(--ok); }
+.stage.active { border-top-color: var(--warn); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px 20px; margin: 0; }
+.facts div { display: flex; flex-direction: column; }
+.facts dt { font-size: 12.5px; color: var(--muted); }
+.facts dd { margin: 0; font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 0; }
+tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; max-width: 100%; }
+.tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 4px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.tag.bad { background: var(--bad-soft); color: var(--bad); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+.link { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn, input[type="search"], select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 6px 12px; }
+.btn { cursor: pointer; font-weight: 600; }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.flowgrid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.mapbox { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+.mapbox svg { display: block; }
+.detail { position: sticky; top: 12px; }
+@media (max-width: 900px) { .flowgrid { grid-template-columns: minmax(0, 1fr); } .detail { position: static; } }
+.node-hit { cursor: pointer; }
+.node-hit rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+.node-hit.sel rect.box { stroke: var(--accent); stroke-width: 2.5; }
+.node-hit:hover rect.box { stroke: var(--accent); }
+.node-hit .k { font: 500 10px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; fill: var(--muted); }
+.node-hit .nm { font: 600 12px var(--font-body); fill: var(--ink); }
+.edge { fill: none; stroke: var(--edge); stroke-width: 1.4; }
+.edge.err { stroke: var(--bad); stroke-dasharray: 5 4; }
+.elabel { font: 500 10px var(--font-mono); fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.elabel.err { fill: var(--bad); }
+.kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 10px; font-size: 13.5px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: 12.5px; padding: 3px 9px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); }
+.chip.ph { border-color: var(--warn); color: var(--warn); }
+details { border: 1px solid var(--line); border-radius: 5px; padding: 8px 12px; background: var(--surface); }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+label.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+label.check input { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+.note { font-size: 13px; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: no-preference) { nav.tabs button { transition: color .15s, border-color .15s; } }
+</style>
+
+<div class="app"><div class="wrap">
+  <header class="top">
+    <span class="eyebrow">SHOW-001 · Showcase only · built from the exported workflow files</span>
+    <h1>AI Lead Qualifier, mapped</h1>
+    <div class="pills" id="pills"></div>
+  </header>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <section class="panel" id="p-overview" role="tabpanel"></section>
+  <section class="panel" id="p-flow" role="tabpanel" hidden></section>
+  <section class="panel" id="p-nodes" role="tabpanel" hidden></section>
+  <section class="panel" id="p-connections" role="tabpanel" hidden></section>
+  <section class="panel" id="p-rules" role="tabpanel" hidden></section>
+  <section class="panel" id="p-fields" role="tabpanel" hidden></section>
+  <section class="panel" id="p-setup" role="tabpanel" hidden></section>
+  <p class="note" id="foot"></p>
+</div></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const CATS = {
+  trigger: ['Trigger', 'var(--c-trigger)'], prep: ['Prepare data', 'var(--c-prep)'], check: ['Check or route', 'var(--c-check)'],
+  ai: ['AI', 'var(--c-ai)'], service: ['Outside service', 'var(--c-service)'], log: ['Log table', 'var(--c-log)'], end: ['End or alert', 'var(--c-end)'],
+};
+const TABS = [['overview', 'Overview'], ['flow', 'Flow'], ['nodes', 'Steps'], ['connections', 'Connections'], ['rules', 'Triggers and rules'], ['fields', 'Fields'], ['setup', 'Setup checklist']];
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat().forEach((c) => { if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c))); });
+  return el;
+}
+function s(tag, attrs, ...kids) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  kids.flat().forEach((c) => c && el.append(c.nodeType ? c : document.createTextNode(String(c))));
+  return el;
+}
+const dot = (cat) => h('span', { class: 'dot', style: 'background:' + CATS[cat][1] });
+const wf = (key) => DATA.workflows.find((w) => w.key === key);
+const main = wf('main');
+const minutes = (sec) => (sec % 60 === 0 ? sec / 60 + ' min' : sec + ' s');
+const isPh = (v) => /PLACEHOLDER_/.test(v);
+function store(key, val) { try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; } }
+
+/* ---------- state ---------- */
+let currentTab = 'overview', currentWf = 'main', selected = null, zoom = 1;
+
+/* ---------- header and tabs ---------- */
+function renderHeader() {
+  const pills = document.getElementById('pills');
+  pills.append(
+    h('span', { class: 'pill ok' }, main.active ? 'Active' : 'Inactive (nothing switched on)'),
+    h('span', { class: 'pill' }, 'Synthetic data only'),
+    h('span', { class: 'pill warn' }, DATA.unverifiedTotal + ' nodes flagged UNVERIFIED'),
+    h('span', { class: 'pill' }, 'Status as of ' + DATA.status.asOf),
+  );
+  const tabs = document.getElementById('tabs');
+  TABS.forEach(([id, label]) => tabs.append(h('button', { role: 'tab', id: 't-' + id, 'aria-selected': 'false', onclick: () => show(id) }, label)));
+  document.getElementById('foot').textContent = 'Generated ' + DATA.generated + ' from the workflow JSON files by scripts/build-explorer.mjs. Credentials appear by name only. Re-run the script after any workflow change; the test status line is typed into the script and needs updating by hand.';
+}
+function show(id, push = true) {
+  currentTab = id;
+  TABS.forEach(([t]) => {
+    document.getElementById('p-' + t).hidden = t !== id;
+    document.getElementById('t-' + t).setAttribute('aria-selected', String(t === id));
+  });
+  if (push) { try { history.replaceState(null, '', '#' + id); } catch (e) {} }
+}
+
+/* ---------- overview ---------- */
+function renderOverview() {
+  const p = document.getElementById('p-overview');
+  const services = new Set(DATA.credentials.map((c) => c.service).filter(Boolean));
+  p.append(
+    h('div', { class: 'card' },
+      h('h2', null, 'What it does'),
+      h('p', null, 'A website form sends a lead to n8n. n8n cleans it, checks it is not a repeat, and asks an AI to score it against a fixed B2B rubric. The AI must answer in a strict format (score, tier, reason, confidence) and n8n checks that answer itself before anything happens.'),
+      h('div', { class: 'scroll' }, h('table', null,
+        h('thead', null, h('tr', null, h('th', null, 'Situation'), h('th', null, 'What happens'))),
+        h('tbody', null,
+          [['Hot lead', 'Saved in HubSpot, a follow-up task is created, and Slack pings you.'],
+           ['Warm or cold lead', 'Saved in HubSpot quietly. No ping.'],
+           ['AI unsure, answer invalid, or daily cap reached', 'Nothing is decided automatically. A plain Slack message asks you to review, and the lead is saved as "needs review".'],
+           ['Bad input (no valid email, company or consent)', 'Rejected before any AI call. Only the reason is logged.'],
+           ['Repeat within 24 hours', 'Logged and ended. No second AI call, no second alert.'],
+           ['Something crashes', 'The shared error-alert workflow posts which workflow and step failed, with a link. (Not yet tested: case 21 was skipped.)']]
+            .map(([a, b]) => h('tr', null, h('td', null, h('b', null, a)), h('td', null, b)))))),
+    ),
+    h('div', { class: 'card' },
+      h('h2', null, 'Where the project stands'),
+      h('div', { class: 'stages' }, DATA.status.stages.map((st) =>
+        h('div', { class: 'stage ' + st.state }, h('b', null, st.name), h('span', { class: 'muted' }, st.note)))),
+    ),
+    h('div', { class: 'card' },
+      h('h2', null, 'At a glance'),
+      h('dl', { class: 'facts' },
+        [['Steps on the map', main.nodes.length + wf('alert').nodes.length], ['Workflows', DATA.workflows.length], ['Triggers', DATA.workflows.length],
+         ['Outside services', services.size], ['Setup values to fill', DATA.placeholders.length], ['Unverified nodes', DATA.unverifiedTotal]]
+          .map(([k, v]) => h('div', null, h('dt', null, k), h('dd', null, v)))),
+    ),
+    h('div', { class: 'grid2' },
+      h('div', { class: 'card' }, h('h3', null, 'Built-in safety rules'),
+        h('ul', { class: 'plain' },
+          h('li', null, 'Built and delivered inactive. Only you switch it on.'),
+          h('li', null, 'No passwords or keys in the files. Credentials are named, and you create them in n8n.'),
+          h('li', null, 'The AI never picks a recipient, channel or link. Those come from the Settings step.'),
+          h('li', null, 'Slack messages never contain the email or the raw message.'),
+          h('li', null, 'Spend is capped: short input, short answer, at most 3 AI calls per lead, a daily limit.'))),
+      h('div', { class: 'card' }, h('h3', null, 'How to read this page'),
+        h('ul', { class: 'plain' },
+          h('li', null, h('b', null, 'Flow'), ': click any step to see what it does, what feeds it and where it goes.'),
+          h('li', null, h('b', null, 'Steps'), ': the same steps as a searchable table.'),
+          h('li', null, h('b', null, 'Connections'), ': which outside services get which data.'),
+          h('li', null, h('b', null, 'Triggers and rules'), ': how a lead enters, and the numbers you can change.'),
+          h('li', null, h('b', null, 'Fields'), ': what comes in, what the AI returns, what is logged.'),
+          h('li', null, h('b', null, 'Setup checklist'), ': what to fill in, with tick boxes.'))),
+    ),
+  );
+}
+
+/* ---------- flow ---------- */
+const NW = 168, NH = 58, GX = 22, GY = 46, PAD = 20;
+function layout(w) {
+  // top-to-bottom: each step sits in a row by how far it is from the trigger; siblings share the row side by side
+  const counts = {};
+  w.nodes.forEach((n) => { counts[n.layer] = (counts[n.layer] || 0) + 1; });
+  const maxCols = Math.max(...Object.values(counts));
+  const pos = {};
+  w.nodes.forEach((n) => {
+    const off = ((maxCols - counts[n.layer]) * (NW + GX)) / 2;
+    pos[n.name] = { x: PAD + off + n.row * (NW + GX), y: PAD + n.layer * (NH + GY) };
+  });
+  return { pos, width: PAD * 2 + maxCols * (NW + GX) - GX, height: PAD * 2 + w.layers * (NH + GY) - GY };
+}
+function renderFlow() {
+  const p = document.getElementById('p-flow');
+  p.replaceChildren();
+  const w = wf(currentWf);
+  const seg = h('div', { class: 'row' }, DATA.workflows.map((x) => h('button', { class: 'btn', 'aria-pressed': String(x.key === currentWf), onclick: () => { currentWf = x.key; selected = null; renderFlow(); } }, x.tab)));
+  const zoomBar = h('div', { class: 'row' },
+    h('span', { class: 'note' }, 'Zoom'),
+    h('button', { class: 'btn', 'aria-label': 'Zoom out', onclick: () => { zoom = Math.max(0.4, zoom - 0.15); redraw(); } }, '−'),
+    h('button', { class: 'btn', 'aria-label': 'Zoom in', onclick: () => { zoom = Math.min(1.6, zoom + 0.15); redraw(); } }, '+'),
+    h('button', { class: 'btn', onclick: () => { zoom = Math.max(0.5, Math.min(1, ((mapbox.clientWidth || 800) - 2) / L.width)); redraw(); } }, 'Fit width'));
+  const legend = h('div', { class: 'legend' },
+    Object.entries(CATS).map(([k, [label]]) => h('span', null, dot(k), label)),
+    h('span', null, h('b', { style: 'color:var(--bad)' }, '- - -'), ' error path'),
+    h('span', null, h('b', { style: 'color:var(--warn)' }, '?'), ' unverified'));
+  const mapbox = h('div', { class: 'mapbox', tabindex: '0', 'aria-label': 'Workflow diagram, scrollable' });
+  const detail = h('div', { class: 'card detail', 'aria-live': 'polite' });
+  p.append(
+    h('div', { class: 'row' }, h('h2', null, w.name)),
+    h('div', { class: 'row' }, seg, zoomBar), legend,
+    h('div', { class: 'flowgrid' }, mapbox, detail),
+  );
+  const L = layout(w);
+  if (!selected) selected = w.nodes[0].name;
+  let fitted = false;
+  function redraw() {
+    if (!fitted) { fitted = true; zoom = Math.max(0.7, Math.min(1, ((mapbox.clientWidth || 800) - 2) / L.width)); }
+    mapbox.replaceChildren();
+    const svg = s('svg', { width: L.width * zoom, height: L.height * zoom, viewBox: '0 0 ' + L.width + ' ' + L.height, role: 'group', 'aria-label': 'Steps and connections' });
+    const edgeLayer = s('g'); const nodeLayer = s('g');
+    w.edges.forEach((e) => {
+      const a = L.pos[e.from], b = L.pos[e.to]; if (!a || !b) return;
+      const x1 = a.x + NW / 2, y1 = a.y + NH, x2 = b.x + NW / 2, y2 = b.y, dy = Math.max(22, (y2 - y1) / 2);
+      edgeLayer.append(s('path', { class: 'edge' + (e.error ? ' err' : ''), d: `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}` }));
+      if (e.label) edgeLayer.append(s('text', { class: 'elabel' + (e.error ? ' err' : ''), x: x1 + (x2 - x1) * 0.18 + (x2 >= x1 ? 5 : -5), y: y1 + 15, 'text-anchor': x2 >= x1 ? 'start' : 'end' }, e.label));
+    });
+    w.nodes.forEach((n) => {
+      const q = L.pos[n.name];
+      const g = s('g', { class: 'node-hit' + (selected === n.name ? ' sel' : ''), tabindex: '0', role: 'button', 'aria-label': n.name + ', ' + n.kind, transform: `translate(${q.x},${q.y})` });
+      g.append(s('rect', { class: 'box', width: NW, height: NH, rx: 5 }));
+      g.append(s('circle', { cx: 13, cy: 15, r: 4.5, style: 'fill:' + CATS[n.cat][1] }));
+      g.append(s('text', { class: 'k', x: 24, y: 18 }, n.kind));
+      const fo = s('foreignObject', { x: 10, y: 24, width: NW - 20, height: NH - 26 });
+      const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+      div.setAttribute('style', 'font:600 12px/1.25 var(--font-body);color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;');
+      div.textContent = n.name;
+      fo.append(div); g.append(fo);
+      if (n.unverified) { g.append(s('circle', { cx: NW - 12, cy: 13, r: 8, style: 'fill:var(--warn-soft);stroke:var(--warn)' })); g.append(s('text', { x: NW - 12, y: 17, 'text-anchor': 'middle', style: 'font:700 11px var(--font-body);fill:var(--warn)' }, '?')); }
+      const pick = () => { selected = n.name; redraw(); renderDetail(); };
+      g.addEventListener('click', pick);
+      g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } });
+      nodeLayer.append(g);
+    });
+    svg.append(edgeLayer, nodeLayer); mapbox.append(svg);
+  }
+  function renderDetail() {
+    detail.replaceChildren();
+    const n = w.nodes.find((x) => x.name === selected);
+    if (!n) { detail.append(h('h3', null, 'Select a step'), h('p', { class: 'muted' }, 'Click any box in the diagram to see what it does, what feeds it and where it goes next.')); return; }
+    const jump = (name) => h('button', { class: 'link', onclick: () => { selected = name; redraw(); renderDetail(); } }, name);
+    const list = (arr) => arr.length ? h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, arr.map(jump)) : h('span', { class: 'muted' }, 'None (end of this path)');
+    detail.append(
+      h('div', null, h('span', { class: 'eyebrow' }, dot(n.cat), CATS[n.cat][0]), h('h3', { style: 'margin-top:4px' }, n.name)),
+      n.desc ? h('p', null, n.desc) : null,
+      h('dl', { class: 'kv' },
+        h('dt', null, 'n8n node'), h('dd', null, h('span', { class: 'mono' }, n.type + ' v' + n.typeVersion)),
+        h('dt', null, 'Comes from'), h('dd', null, n.prev.length ? h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, n.prev.map(jump)) : h('span', { class: 'muted' }, 'Start of the workflow')),
+        h('dt', null, 'Goes to'), h('dd', null, list(n.next)),
+        n.credentials.length ? [h('dt', null, 'Credential'), h('dd', null, n.credentials.map((c) => h('div', null, c.name)))] : null,
+        h('dt', null, 'If it fails'), h('dd', null, n.onError + (n.retry ? '; retries ' + (n.retry.tries ?? 'default') + ' times' : '')),
+        n.subs.length ? [h('dt', null, 'Uses'), h('dd', null, n.subs.map((x) => h('div', null, h('b', null, x.name), x.desc ? ': ' + x.desc : '')))] : null,
+      ),
+      n.unverified ? h('div', { class: 'tag warn', style: 'white-space:normal;padding:8px 10px' }, 'UNVERIFIED: confirm on the first real run. ' + (n.note ? n.note.replace(/^UNVERIFIED - confirm on import\.?\s*/i, '') : '')) : h('span', { class: 'tag ok', style: 'align-self:flex-start' }, 'No open verification flag'),
+    );
+  }
+  redraw(); renderDetail();
+}
+
+/* ---------- steps table ---------- */
+function renderNodes() {
+  const p = document.getElementById('p-nodes');
+  const all = DATA.workflows.flatMap((w) => w.nodes.map((n) => ({ ...n, wf: w })));
+  const q = h('input', { type: 'search', id: 'nq', placeholder: 'Search steps', 'aria-label': 'Search steps' });
+  const cat = h('select', { id: 'ncat', 'aria-label': 'Filter by type' }, h('option', { value: '' }, 'All types'), Object.entries(CATS).map(([k, [l]]) => h('option', { value: k }, l)));
+  const unv = h('input', { type: 'checkbox', id: 'nunv' });
+  const count = h('span', { class: 'note' });
+  const body = h('tbody');
+  const draw = () => {
+    body.replaceChildren();
+    const term = q.value.trim().toLowerCase();
+    const rows = all.filter((n) => (!cat.value || n.cat === cat.value) && (!unv.checked || n.unverified) && (!term || (n.name + ' ' + n.desc + ' ' + n.kind).toLowerCase().includes(term)));
+    count.textContent = rows.length + ' of ' + all.length + ' steps';
+    rows.forEach((n) => body.append(h('tr', null,
+      h('td', null, h('button', { class: 'link', onclick: () => { currentWf = n.wf.key; selected = n.name; renderFlow(); show('flow'); } }, n.name), h('div', { class: 'note' }, n.wf.tab)),
+      h('td', null, dot(n.cat), n.kind),
+      h('td', { style: 'min-width:260px' }, n.desc),
+      h('td', null, n.credentials.length ? n.credentials.map((c) => DATA.credentials.find((x) => x.name === c.name)?.service || c.name).join(', ') : ''),
+      h('td', null, n.onError, n.retry ? h('div', { class: 'note' }, 'retries ' + (n.retry.tries ?? 'default') + 'x') : null),
+      h('td', null, n.unverified ? h('span', { class: 'tag warn' }, 'Unverified') : h('span', { class: 'tag' }, 'Standard')))));
+  };
+  [q, cat, unv].forEach((el) => el.addEventListener('input', draw));
+  p.append(h('div', { class: 'row' }, h('h2', null, 'All steps'), count),
+    h('div', { class: 'row' }, q, cat, h('label', { class: 'row', for: 'nunv' }, unv, ' Unverified only')),
+    h('div', { class: 'card scroll' }, h('table', null, h('thead', null, h('tr', null, ['Step', 'Type', 'What it does', 'Service', 'If it fails', 'Status'].map((x) => h('th', null, x)))), body)));
+  draw();
+}
+
+/* ---------- connections ---------- */
+const DATA_OUT = [
+  ['Anthropic (Claude)', 'Sent: role, company size, budget, timeline, source, and the message (cut to the length limit, marked as untrusted text).', 'Never sent: name, email, phone, consent flag.', 'ai'],
+  ['HubSpot', 'Sent: name, email, company, role, DEMO tag and the AI fields. A task is created for hot leads.', 'Contact data lives here by design; the AI never chooses the fields.', 'service'],
+  ['Slack', 'Sent: lead ID, company, role, score, tier and a cleaned reason (short, no links, no @ mentions), plus a HubSpot link.', 'Never sent: email address or the raw message.', 'service'],
+  ['n8n data table (log)', 'Stored: lead ID, a one-way hash of the email for repeat checks, status, decision path, score, tier, confidence, short reason, IDs. Two rows per scored lead.', 'Never stored: the raw message or phone number.', 'log'],
+];
+function renderConnections() {
+  const p = document.getElementById('p-connections');
+  p.append(
+    h('div', { class: 'card' }, h('h2', null, 'Credentials the workflows expect'),
+      h('p', { class: 'muted' }, 'The files hold names only. You create each one inside n8n and select it on the steps that use it. Never paste keys into chat.'),
+      h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Credential name', 'Service', 'Type', 'Used by'].map((x) => h('th', null, x)))),
+        h('tbody', null, DATA.credentials.map((c) => h('tr', null, h('td', null, h('b', null, c.name)), h('td', null, c.service), h('td', null, c.type), h('td', null, h('div', { class: 'chips' }, c.nodes.map((x) => h('span', { class: 'chip' }, x)))))))))),
+    h('div', { class: 'card' }, h('h2', null, 'What leaves n8n, and where it goes'),
+      h('p', { class: 'muted' }, 'As designed and reviewed. Test evidence is still pending, so treat "never sent" as a design rule that the tests will confirm.'),
+      h('div', { class: 'grid2' }, DATA_OUT.map(([name, sent, never, cat]) => h('div', { class: 'card', style: 'background:var(--surface-2)' }, h('h3', null, dot(cat), name), h('p', null, sent), h('p', { class: 'muted' }, never))))),
+  );
+}
+
+/* ---------- triggers and rules ---------- */
+const RULE_LABEL = {
+  rubric_version: 'Scoring rubric version', prompt_version: 'AI prompt version', confidence_threshold: 'Review if AI confidence is below',
+  hot_min: 'Hot starts at score', warm_min: 'Warm starts at score', max_message_chars: 'Message cut to (characters)', daily_ai_cap: 'Daily AI-scored leads cap',
+  slack_hot_channel_id: 'Slack channel: hot leads', slack_review_channel_id: 'Slack channel: review', model_name: 'AI model name (label only)', hubspot_portal_id: 'HubSpot portal ID',
+};
+function renderRules() {
+  const p = document.getElementById('p-rules');
+  const t = main.trigger, a = wf('alert').trigger, st = main.settings;
+  p.append(
+    h('div', { class: 'grid2' },
+      h('div', { class: 'card' }, h('h2', null, 'Trigger: lead qualifier'),
+        h('dl', { class: 'kv' },
+          h('dt', null, 'Type'), h('dd', null, t.kind + ' (instant, no polling)'),
+          h('dt', null, 'Method'), h('dd', null, t.method),
+          h('dt', null, 'Path'), h('dd', null, h('code', null, t.path), isPh(t.path) ? h('div', { class: 'note' }, 'Replace with a long random string.') : null),
+          h('dt', null, 'Security'), h('dd', null, t.auth === 'headerAuth' ? 'Secret header required (credential: ' + t.credential + ')' : 'None'),
+          h('dt', null, 'Reply'), h('dd', null, t.respond === 'onReceived' ? 'Answers "received" immediately; the AI work continues afterwards' : t.respond),
+          h('dt', null, 'While inactive'), h('dd', null, 'Use the Test URL and "Listen for test event". The Production URL only works once you switch the workflow on.'))),
+      h('div', { class: 'card' }, h('h2', null, 'Trigger: error alert'),
+        h('dl', { class: 'kv' },
+          h('dt', null, 'Type'), h('dd', null, a.kind),
+          h('dt', null, 'Starts when'), h('dd', null, a.note),
+          h('dt', null, 'Linked by'), h('dd', null, 'Workflow settings, "Error Workflow", on the qualifier. Currently ', h('code', null, st.errorWorkflow || 'not set')),
+          h('dt', null, 'Tested?'), h('dd', null, h('span', { class: 'tag bad' }, 'Not tested'), ' Case 21 was skipped by decision. Real failures are the first proof.')))),
+    h('div', { class: 'card' }, h('h2', null, 'Rules you can change'),
+      h('p', { class: 'muted' }, 'These live in the Settings step. Orange values are placeholders you must fill in.'),
+      h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Rule', 'Value', 'Name in n8n'].map((x) => h('th', null, x)))),
+        h('tbody', null, main.configValues.map((c) => h('tr', null, h('td', null, RULE_LABEL[c.name] || c.name), h('td', null, h('span', { class: 'chip' + (isPh(c.value) ? ' ph' : '') }, c.value)), h('td', null, h('code', null, c.name)))))))),
+    h('div', { class: 'card' }, h('h2', null, 'Workflow settings'),
+      h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Setting', 'Value', 'Why it matters'].map((x) => h('th', null, x)))),
+        h('tbody', null,
+          [['Time zone', st.timezone, 'Dates in logs and the task due time use this. Change it from UTC to your own zone.'],
+           ['Timeout', st.executionTimeout ? minutes(st.executionTimeout) : 'none', 'Stops a stuck run from hanging.'],
+           ['Save failed runs', st.saveDataErrorExecution, 'Needed to retry a failed run by hand.'],
+           ['Save successful runs', st.saveDataSuccessExecution, 'Keeps lead details in n8n history. Set a short retention on the instance.'],
+           ['Error workflow', st.errorWorkflow, 'Who is told when a run fails.']]
+            .map(([k, v, why]) => h('tr', null, h('td', null, k), h('td', null, h('span', { class: 'chip' + (isPh(String(v)) ? ' ph' : '') }, String(v))), h('td', null, why))))))),
+  );
+}
+
+/* ---------- fields ---------- */
+function renderFields() {
+  const p = document.getElementById('p-fields');
+  const F = DATA.fields;
+  p.append(
+    h('div', { class: 'card' }, h('h2', null, 'Coming in from the form'),
+      h('p', { class: 'muted' }, 'The "Clean the lead" step turns the raw form data into these fields. Fake leads only while testing.'),
+      h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Stored as', 'Form field', 'Handling'].map((x) => h('th', null, x)))),
+        h('tbody', null, F.incoming.map((f) => h('tr', null, h('td', null, h('code', null, f.name)), h('td', null, f.form ? h('code', null, f.form) : h('span', { class: 'muted' }, 'created by n8n')), h('td', null, f.how, h('details', { style: 'margin-top:4px;border:0;padding:0;background:none' }, h('summary', { class: 'note' }, 'Formula'), h('code', null, f.expression))))))))),
+    h('div', { class: 'grid2' },
+      h('div', { class: 'card' }, h('h2', null, 'What the AI must return'),
+        h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Field', 'Type', 'Rule'].map((x) => h('th', null, x)))),
+          h('tbody', null, F.aiSchema.map((f) => h('tr', null, h('td', null, h('code', null, f.name)), h('td', null, f.type), h('td', null, f.rule))))))),
+      h('div', { class: 'card' }, h('h2', null, 'HubSpot contact properties'),
+        h('p', { class: 'muted' }, 'Create these as single-line text in HubSpot before the first real run. A wrong name is ignored silently, so check the saved contact.'),
+        h('div', { class: 'chips' }, F.hubspot.map((x) => h('span', { class: 'chip' }, x))))),
+    h('div', { class: 'card' }, h('h2', null, 'Log table columns'),
+      h('p', { class: 'muted' }, 'Table "showcase_lead_log" in your Personal project. Each scored lead writes two rows by design: a "processing" row before the AI call and a final row.'),
+      h('div', { class: 'chips' }, F.logColumns.map((c) => h('span', { class: 'chip' }, c.name + ' · ' + c.type)))),
+  );
+}
+
+/* ---------- setup ---------- */
+const STEPS = [
+  'Import the error alert workflow first, then note its ID from the address bar.',
+  'Create the data table "showcase_lead_log" with the columns on the Fields tab.',
+  'Create the HubSpot text properties listed on the Fields tab.',
+  'Import the lead qualifier workflow and select each credential on its steps.',
+  'Fill in the placeholders below. Choose the log table in all six data table steps and pick the AI model in both model steps.',
+  'Set the qualifier\'s Error Workflow to the error alert workflow.',
+  'Add tags by hand: showcase, SHOW-001, draft (shared, SHOW-001, draft for the alert workflow).',
+  'Set a monthly spend limit at the AI provider and a short execution-data retention in n8n.',
+  'Leave both workflows inactive. Run the test script through the Test URL.',
+];
+function renderSetup() {
+  const p = document.getElementById('p-setup');
+  const box = (id, label, extra) => {
+    const inp = h('input', { type: 'checkbox', id });
+    try { inp.checked = store('chk:' + id) === '1'; } catch (e) {}
+    inp.addEventListener('change', () => { store('chk:' + id, inp.checked ? '1' : '0'); updateProgress(); });
+    return h('label', { class: 'check', for: id }, inp, h('span', null, label, extra));
+  };
+  const progress = h('p', { class: 'note', id: 'prog' });
+  const updateProgress = () => {
+    const all = p.querySelectorAll('input[type=checkbox]'); const done = [...all].filter((x) => x.checked).length;
+    progress.textContent = done + ' of ' + all.length + ' ticked. Ticks are remembered in this browser only; nothing is sent or shared.';
+  };
+  p.append(
+    h('div', { class: 'card' }, h('h2', null, 'Order of work'), progress, h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, STEPS.map((x, i) => box('step' + i, x)))),
+    h('div', { class: 'card' }, h('h2', null, 'Values to fill in'),
+      h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Done', 'Placeholder', 'Where'].map((x) => h('th', null, x)))),
+        h('tbody', null, DATA.placeholders.map((x, i) => h('tr', null, h('td', null, box('ph' + i, '')), h('td', null, h('code', null, x.token)), h('td', null, h('div', { class: 'chips' }, x.where.map((w) => h('span', { class: 'chip' }, w)))))))))),
+    h('div', { class: 'card' }, h('h2', null, 'Credentials to create in n8n'),
+      h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, DATA.credentials.map((c, i) => box('cr' + i, h('b', null, c.name), h('span', { class: 'muted' }, ' · ' + c.type))))),
+    h('div', { class: 'card' }, h('h2', null, 'Steps to watch on the first run'),
+      h('p', { class: 'muted' }, 'These were built without being able to check every setting against your n8n version. Each carries an UNVERIFIED note on the step itself.'),
+      h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, DATA.unverified.map((u) => h('details', null, h('summary', null, (u.wf === 'main' ? 'Qualifier: ' : 'Alert: ') + u.name), h('p', { class: 'note', style: 'margin-top:6px' }, u.note.replace(/^UNVERIFIED - confirm on import\.?\s*/i, '') || 'See the node note in n8n.'))))),
+  );
+  updateProgress();
+}
+
+renderHeader(); renderOverview(); renderFlow(); renderNodes(); renderConnections(); renderRules(); renderFields(); renderSetup();
+const start = (location.hash || '').slice(1);
+show(TABS.some(([t]) => t === start) ? start : 'overview', false);
+</script>

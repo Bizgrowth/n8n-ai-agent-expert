@@ -31,7 +31,8 @@ Read `docs/connect-n8n.md`. The main point: put your n8n VPS behind HTTPS on a d
 - `clients/` — per-client working files
 - `showcase/` — reusable templates for Upwork, social media and the website
 - `scripts/lint-workflow.mjs` — automatic standards check on an exported workflow (needs Node, no installs)
-- `docs/` — n8n connection setup, Make-to-n8n translation guide
+- `scripts/build-explorer.mjs` — builds a read-only map page (flow, steps, connections, fields, setup checklist) from a client's workflow files: `node scripts/build-explorer.mjs clients/<client> out.html`
+- `docs/` — n8n connection setup, Make-to-n8n translation guide, agent-integration practices (Oct 2026)
 
 ## Notion
 Mirror the Clients tracker, Gigs & Briefs and Template Library to Notion when you ask.
