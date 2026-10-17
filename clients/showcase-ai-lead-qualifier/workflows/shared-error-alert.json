@@ -1,0 +1,150 @@
+{
+  "name": "SHARED | Error Alert | Error Trigger → Slack alert | v1",
+  "active": false,
+  "nodes": [
+    {
+      "name": "Sticky note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -260
+      ],
+      "parameters": {
+        "width": 560,
+        "height": 260,
+        "content": "## SHARED | Error Alert | v1\n**Purpose:** one alert workflow for the whole instance. Any workflow that sets this as its Error Workflow posts here: workflow name, failing node, execution link, first line of the error. No lead data.\n**Owner:** AI Ops Expert owner. **Trigger:** Error Trigger (cannot be tested with a manual run; make a real workflow fail). **Version:** v1. **Last change:** 2026-10-17. **n8n version built on:** UNKNOWN.\n**Placeholder:** PLACEHOLDER_SLACK_ALERT_CHANNEL_ID. **Credential:** Slack - AI Ops Expert. **Built INACTIVE.** Does not need to be published to act as an Error Workflow."
+      }
+    },
+    {
+      "name": "Workflow failed",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Prepare alert text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c100",
+              "name": "alert_channel_id",
+              "value": "PLACEHOLDER_SLACK_ALERT_CHANNEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "c101",
+              "name": "workflow_name",
+              "value": "={{ String($json.workflow?.name ?? 'unknown workflow') }}",
+              "type": "string"
+            },
+            {
+              "id": "c102",
+              "name": "failing_node",
+              "value": "={{ String($json.execution?.lastNodeExecuted ?? $json.trigger?.error?.node?.name ?? 'unknown (the trigger itself may have failed)') }}",
+              "type": "string"
+            },
+            {
+              "id": "c103",
+              "name": "execution_url",
+              "value": "={{ String($json.execution?.url ?? 'not available (execution not saved)') }}",
+              "type": "string"
+            },
+            {
+              "id": "c104",
+              "name": "error_line",
+              "value": "={{ String(String($json.execution?.error?.message ?? $json.trigger?.error?.message ?? 'no message').split('\\n')[0] ?? '').replace(/https?:\\/\\/\\S+/gi,'[link removed]').replace(/www\\.\\S+/gi,'[link removed]').replace(/[@<>]/g,'').replace(/\\s+/g,' ').trim().slice(0,200) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "notes": "If the trigger node itself failed, data arrives in a different shape (trigger.error...); fallbacks cover it."
+    },
+    {
+      "name": "Slack: tell the owner",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.alert_channel_id }}"
+        },
+        "messageType": "text",
+        "text": "={{ '*Workflow failed*\\nWorkflow: ' + $json.workflow_name + '\\nFailing node: ' + $json.failing_node + '\\nExecution: ' + $json.execution_url + '\\nError (first line): ' + $json.error_line }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "mrkdwn": true,
+          "unfurl_links": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "name": "Slack - AI Ops Expert"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "stopWorkflow",
+      "notes": "UNVERIFIED - confirm on import: Slack node version 2.3 and parameter names taken from n8n source; confirm channel picker accepts the ID."
+    }
+  ],
+  "connections": {
+    "Workflow failed": {
+      "main": [
+        [
+          {
+            "node": "Prepare alert text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare alert text": {
+      "main": [
+        [
+          {
+            "node": "Slack: tell the owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC",
+    "executionTimeout": 120,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  }
+}
