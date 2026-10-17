@@ -24,15 +24,16 @@ Read `docs/connect-n8n.md`. The main point: put your n8n VPS behind HTTPS on a d
 
 ## Layout
 - `CLAUDE.md` — orchestrator rules and workflow
-- `.claude/agents/` — 7 specialist sub-agents (intake-brief, architect, builder, best-practice-reviewer, qa-tester, handoff-writer, template-showcase)
+- `.claude/agents/` — 7 stage agents (intake-brief, architect, builder, best-practice-reviewer, qa-tester, handoff-writer, template-showcase) plus 6 n8n area specialists (triggers, connections, ai, data, ops, admin)
 - `playbooks/` — n8n best practices, AI guardrails, pricing/scoping, pattern libraries
 - `templates/` — brief, process doc, test report, Loom script
 - `checklists/` — approval gates
 - `clients/` — per-client working files
 - `showcase/` — reusable templates for Upwork, social media and the website
 - `scripts/lint-workflow.mjs` — automatic standards check on an exported workflow (needs Node, no installs)
+- `scripts/n8n-readonly-probe.mjs` — GET-only check of what is in n8n (needs an API key in the environment; written but not yet tested)
 - `scripts/build-explorer.mjs` — builds a read-only map page (flow, steps, connections, fields, setup checklist) from a client's workflow files: `node scripts/build-explorer.mjs clients/<client> out.html`
-- `docs/` — n8n connection setup, Make-to-n8n translation guide, agent-integration practices (Oct 2026)
+- `docs/` — n8n connection setup, access best practice (Oct 2026), n8n app map, Make-to-n8n translation guide, agent-integration practices
 
 ## Notion
 Mirror the Clients tracker, Gigs & Briefs and Template Library to Notion when you ask.
