@@ -8,6 +8,6 @@ Rules:
 - Workflow files must pass `node scripts/lint-workflow.mjs <file>` before Gate 2.
 
 ## Owner's n8n instance notes (fill in)
-- n8n edition / projects available: TBD (see `docs/connect-n8n.md`, Step 1)
+- n8n edition: self-hosted Community with a license key activated (owner report, 2026-10-17). Projects beyond Personal: not verified.
 - Instance on HTTPS with a domain: **No** (as of 2026-10-17; Sandbox/Showcase only until fixed)
 - n8n version: TBD

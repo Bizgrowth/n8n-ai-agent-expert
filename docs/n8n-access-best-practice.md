@@ -44,6 +44,18 @@ How the built-in Assistant authenticates was not verified. It is a separate feat
 4. Add the connection to Claude yourself (claude.ai connector settings for OAuth, or the environment settings for a token) and add your n8n address to the environment's allowed network hosts.
 5. Start a new session and ask the agent to list the n8n tools it can see. Do not skip that check.
 
+## Owner's instance facts (reported 2026-10-17; no IP, SSH or key details stored here)
+- Self-hosted n8n **Community edition with a license key activated**, running in Docker on a cloud VM, alongside Open WebUI. Version still unknown.
+- n8n's AI Assistant is enabled and uses Claude. An Anthropic credential already exists in n8n (the owner's note says it is stored for the Assistant and AI nodes). A Daytona code-sandbox key is also stored; what that feature does was not verified and nothing here relies on it.
+- The instance is served over plain HTTP. n8n's docs allow `http://` for a plain-HTTP instance; that settles whether n8n works, not whether it is safe to send an access token over the internet.
+
+### What that changes
+1. **No scoped keys expected.** Scoped API keys are Enterprise-only in the docs, so assume an API key or MCP token carries owner-level power. n8n will not enforce "read-only". The read-only stage must be enforced on the Claude side with a deny list of MCP tools, set by the owner after the tool list is known.
+2. **Use the URL n8n shows, not a guessed one.** The docs say the server URL ends in `/mcp-server/http`. An example ending only in `/mcp` is unlikely to work. Copy the URL from Settings, Instance-level MCP, Connect.
+3. **Plain HTTP means the token travels unencrypted.** Anyone on the path could capture it and gain owner-level access: build workflows that use stored credentials (including the Anthropic key), or read workflow data. Whether Claude's connectors accept `http://` addresses is unverified. The owner has chosen to defer HTTPS, so the mitigations if connecting anyway are: showcase workflows only enabled for MCP, no client data or client credentials on this instance, a token that is regenerated after each working session (n8n revokes the old one), the tool deny list, and revoking access when not in use.
+4. **SSH is not an agent access method.** SSH to the VM controls Docker, every service on it and all stored data. It is never given to the agent, the key file is never shared, and nothing in this repo may ask for it.
+5. **Credentials.** The agent never reads credential values. Workflows reference an existing credential by selecting it; the builder names it in the build log. The Chat model steps of SHOW-001 must select the existing Anthropic credential (the name `LLM - Showcase` is only a suggestion).
+
 ## Sources
 - [n8n docs: connect to the n8n MCP server](https://docs.n8n.io/connect/connect-to-n8n-mcp-server)
 - [n8n docs: MCP server tools reference](https://docs.n8n.io/connect/connect-to-n8n-mcp-server/mcp-server-tools-reference)

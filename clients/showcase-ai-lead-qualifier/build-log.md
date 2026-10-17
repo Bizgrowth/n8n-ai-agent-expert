@@ -122,3 +122,6 @@ Open owner decisions carried over from the review: (1) accept the soft cap / bur
 - **Over-cap Slack posts:** left as built (one Slack post per lead over the cap; review item F11). Owner has not asked for a change.
 - **Time zone:** both workflows remain `UTC`; owner can change it in Workflow Settings.
 - **Import:** owner reports both workflows are imported into the owner's n8n (Showcase, Personal project). Nothing activated by the agent.
+
+## 12. Credential note (2026-10-17)
+Owner reports an Anthropic credential already exists in n8n. In both Chat model steps, select that existing credential; the name `LLM - Showcase` in section 2 is only a suggested name and need not match. Still to do by the owner: pick a model in both steps and set `model_name` in the Settings step to the same model.
