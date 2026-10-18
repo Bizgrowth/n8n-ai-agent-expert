@@ -1,5 +1,11 @@
 # Publishing the Flow Stage on a subdomain
 
+**Live:** https://n8n.aiopsexpert.com (published 2026-10-18). Hosted on the aiopsexpert.com Hostinger plan in the folder `public_html/n8n`. The DNS record for `n8n` was created by Hostinger and points at its CDN; no existing record was changed. HTTPS is active with the redirect on.
+
+**To update:** rebuild with `node visualizer/build.mjs`, then replace `public_html/n8n/index.html` (Hostinger file manager, or ask Claude to upload it).
+
+**Note:** the name `n8n` is the usual name people give to a self-hosted n8n instance. If you later host n8n itself at `n8n.aiopsexpert.com`, move this page to another name first (for example `flow`).
+
 The page is one static file: `visualizer/index.html` (about 100 KB). It needs no server code and no database. It loads two things from Google Fonts and falls back to system fonts if they are blocked.
 
 Rebuild it any time with `node visualizer/build.mjs`. The build checks every scenario against the real workflow connections and refuses to write the page if one is wrong.
