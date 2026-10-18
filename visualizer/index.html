@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Watch a lead travel through a real n8n automation, node by node. Nine scenarios, sample data, run charts and plain-English narration. Synthetic data only.">
+<meta name="theme-color" content="#0d1320">
+<meta property="og:type" content="website">
+<meta property="og:title" content="n8n Flow Stage">
+<meta property="og:description" content="Watch a lead travel through a real n8n automation, node by node. Nine scenarios, sample data, run charts and plain-English narration. Synthetic data only.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%230d1320%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2216%22%20r%3D%223.5%22%20fill%3D%22%23ffb454%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%229%22%20r%3D%223.5%22%20fill%3D%22%234fd6c6%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2223%22%20r%3D%223.5%22%20fill%3D%22%23ff7fb0%22%2F%3E%3Cpath%20d%3D%22M11%2015%2021%2010M11%2017l10%205%22%20stroke%3D%22%23e9eef7%22%20stroke-width%3D%222%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
 <style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -61,7 +68,7 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.15; tex
 .scn[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 1px var(--accent) inset; }
 .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 12px; align-items: start; }
 .stagebox { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
-#stagewrap { position: relative; height: clamp(360px, 62vh, 640px); background-color: var(--bg);
+#stagewrap { position: relative; height: clamp(340px, 60vh, 820px); height: clamp(340px, 60dvh, 820px); background-color: var(--bg);
   background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 22px 22px; touch-action: none; }
 #stage { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
 #stage.drag { cursor: grabbing; }
@@ -151,7 +158,52 @@ details summary { cursor: pointer; font-weight: 600; }
 .phaselbl.on { opacity: 1; }
 #token { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
 .lod .node text { display: none; }
-@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } .side { max-height: none; } }
+/* Large monitors and projectors */
+@media (min-width: 1700px) {
+  .wrap { max-width: 1840px; } body { font-size: 15px; }
+  .main { grid-template-columns: minmax(0, 1fr) 470px; }
+  #stagewrap { height: clamp(520px, 68vh, 940px); height: clamp(520px, 68dvh, 940px); }
+  .caption .line { font-size: 17px; } .brand h1 { font-size: 26px; }
+}
+/* Tablets and small laptops: canvas on top, explainer below */
+@media (max-width: 1100px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .side { max-height: none; }
+  #stagewrap { height: clamp(380px, 56vh, 720px); height: clamp(380px, 56dvh, 720px); }
+}
+/* Phones */
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  .top { gap: 8px; } .brand h1 { font-size: 19px; } .brand p { font-size: 12px; }
+  .brand { flex: 1 1 0; min-width: 0; } .iconbtn { order: 2; } .kpis { order: 3; width: 100%; flex-wrap: nowrap; } .kpi { flex: 1 1 0; min-width: 0; padding: 5px 8px; } .kpi b { font-size: 16px; } .kpi span { font-size: 10px; }
+  .scn { min-width: 132px; }
+  #stagewrap { height: clamp(300px, 46vh, 460px); height: clamp(300px, 46dvh, 460px); }
+  .legend { display: none; }
+  .caption { padding: 8px 12px; } .caption .line { font-size: 14px; }
+  .transport { gap: 8px; padding: 8px 12px; }
+  .transport button.primary { flex: 1 1 30%; }
+  #scrub { flex: 1 1 100%; order: 10; } .timecode { order: 11; margin-left: auto; }
+  .phasebar { padding: 0 12px 10px; }
+  .panel { padding: 12px; }
+  pre.json { max-height: 220px; }
+}
+/* Touch screens: comfortable targets */
+@media (pointer: coarse) {
+  .zoomctl button { width: 44px; height: 44px; font-size: 18px; }
+  .transport button, .transport select, .iconbtn, .tabs button { min-height: 44px; }
+  .scn { min-height: 52px; } .pchip { min-height: 38px; padding: 6px 13px; }
+  .transport input[type=checkbox] { width: 22px; height: 22px; }
+  .transport label { min-height: 44px; } #scrub { height: 36px; }
+  .btn { min-height: 44px; }
+}
+/* Short landscape screens (phones turned sideways) */
+@media (max-height: 520px) and (orientation: landscape) {
+  #stagewrap { height: 72vh; height: 72dvh; } .caption { min-height: 0; padding: 6px 12px; }
+}
+/* Full screen presenting */
+.stagebox:fullscreen { background: var(--bg); border-radius: 0; }
+.stagebox:fullscreen #stagewrap { height: auto; flex: 1 1 auto; min-height: 0; }
+.stagebox:fullscreen .caption .line { font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .node.running .pulse { animation: none; opacity: .8; } .node { transition: none; } }
 </style>
 
@@ -168,13 +220,14 @@ details summary { cursor: pointer; font-weight: 600; }
   <div class="scenarios" id="scenarios" role="group" aria-label="Scenarios"></div>
 
   <div class="main">
-    <section class="stagebox" aria-label="Workflow canvas">
+    <section class="stagebox" id="stagebox" aria-label="Workflow canvas">
       <div id="stagewrap">
         <svg id="stage" role="img" aria-label="Workflow canvas showing the lead qualifier nodes and connections"></svg>
         <div class="zoomctl">
           <button type="button" id="zin" aria-label="Zoom in">+</button>
           <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
           <button type="button" id="zfit" aria-label="Show the whole workflow" title="Show the whole workflow">&#9635;</button>
+          <button type="button" id="zfs" aria-label="Full screen" title="Full screen" hidden>&#9974;</button>
         </div>
         <div class="legend" id="legend"></div>
       </div>
@@ -327,19 +380,35 @@ function fitBox(b, pad, maxK) {
   return { k: k, x: (s.w - b.w * k) / 2 - b.x * k, y: (s.h - b.h * k) / 2 - b.y * k };
 }
 function setView(v, animate) { if (animate) S.target = v; else { S.view = { x: v.x, y: v.y, k: v.k }; S.target = null; applyView(); } }
-function fitAll() { setView(fitBox({ x: minX - 40, y: minY - 50, w: maxX - minX + 80, h: maxY - minY + 100 }, 14, 1), true); }
+function fitAll() { S.atStart = false; setView(fitBox({ x: minX - 40, y: minY - 50, w: maxX - minX + 80, h: maxY - minY + 100 }, 14, 1), true); }
 function centerOn(name, k) {
+  S.atStart = false;
   var n = byName[name], s = sizeOf(); k = k || Math.max(S.view.k, 0.9);
   setView({ k: k, x: s.w / 2 - (n.x + W / 2) * k, y: s.h / 2 - (n.y + H / 2) * k }, true);
 }
 function zoomAt(f, cx, cy) {
+  S.atStart = false;
   var k = Math.max(0.12, Math.min(2.2, S.view.k * f)), s = sizeOf(); cx = cx == null ? s.w / 2 : cx; cy = cy == null ? s.h / 2 : cy;
   S.view = { k: k, x: cx - (cx - S.view.x) * (k / S.view.k), y: cy - (cy - S.view.y) * (k / S.view.k) }; S.target = null; applyView();
 }
-var drag = null;
-svg.addEventListener('pointerdown', function (ev) { if (ev.target.closest && ev.target.closest('.node')) return; drag = { x: ev.clientX, y: ev.clientY, vx: S.view.x, vy: S.view.y }; svg.classList.add('drag'); svg.setPointerCapture(ev.pointerId); S.target = null; });
-svg.addEventListener('pointermove', function (ev) { if (!drag) return; S.view.x = drag.vx + ev.clientX - drag.x; S.view.y = drag.vy + ev.clientY - drag.y; applyView(); });
-function endDrag() { drag = null; svg.classList.remove('drag'); }
+var drag = null, pinch = null, ptrs = {};
+function pdist() { var a = Object.keys(ptrs).map(function (k) { return ptrs[k]; }); return { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, cx: (a[0].x + a[1].x) / 2, cy: (a[0].y + a[1].y) / 2 }; }
+svg.addEventListener('pointerdown', function (ev) {
+  if (ev.target.closest && ev.target.closest('.node')) return;
+  ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; S.atStart = false; S.target = null;
+  try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+  if (Object.keys(ptrs).length === 2) { pinch = { d: pdist().d, k: S.view.k }; drag = null; }
+  else { drag = { x: ev.clientX, y: ev.clientY, vx: S.view.x, vy: S.view.y }; svg.classList.add('drag'); }
+});
+svg.addEventListener('pointermove', function (ev) {
+  if (!ptrs[ev.pointerId]) return; ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+  if (pinch && Object.keys(ptrs).length === 2) { var p = pdist(), r = svg.getBoundingClientRect(); zoomAt((pinch.k * p.d / pinch.d) / S.view.k, p.cx - r.left, p.cy - r.top); return; }
+  if (!drag) return; S.view.x = drag.vx + ev.clientX - drag.x; S.view.y = drag.vy + ev.clientY - drag.y; applyView();
+});
+function endDrag(ev) {
+  delete ptrs[ev.pointerId]; pinch = null; drag = null; svg.classList.remove('drag');
+  var ids = Object.keys(ptrs); if (ids.length === 1) { var q = ptrs[ids[0]]; drag = { x: q.x, y: q.y, vx: S.view.x, vy: S.view.y }; }
+}
 svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
 svg.addEventListener('wheel', function (ev) { ev.preventDefault(); var r = svg.getBoundingClientRect(); zoomAt(ev.deltaY < 0 ? 1.12 : 0.89, ev.clientX - r.left, ev.clientY - r.top); }, { passive: false });
 document.getElementById('zin').onclick = function () { zoomAt(1.25); };
@@ -656,7 +725,7 @@ var pbar = document.getElementById('phasebar');
 D.phases.forEach(function (p) {
   var b = document.createElement('button'); b.type = 'button'; b.className = 'pchip'; b.dataset.p = p.id; b.setAttribute('aria-current', 'false');
   b.innerHTML = '<i style="background:var(--p' + p.color + ')"></i>' + esc(p.name);
-  b.onclick = function () { S.follow = false; document.getElementById('follow').checked = false; setView(fitBox(p.box, 24, 1.1), true); highlightPhase(p.id); };
+  b.onclick = function () { S.atStart = false; S.follow = false; document.getElementById('follow').checked = false; setView(fitBox(p.box, 24, 1.1), true); highlightPhase(p.id); };
   pbar.appendChild(b);
 });
 
@@ -690,17 +759,30 @@ document.getElementById('sample-paste').onclick = function () {
 };
 
 /* ---------- start ---------- */
-window.addEventListener('resize', function () { if (!S.target && !drag) { /* keep user's view */ } });
 renderKpis();
 loadRun(scenById.hot, 126); S.nextId = 127;
 S.history.unshift({ id: 126, sc: 'hot', title: scenById.hot.title, status: 'success', nominalTotal: S.run.nominalTotal, source: 'sample', ago: 'just now', calls: 1 });
 S.tally[scenById.hot.outcome] = (S.tally[scenById.hot.outcome] || 0) + 1; S.aiCalls += 1; S.history[0].sample = true;
 renderKpis();
-S.t = 0;
-(function () {
-  var a = D.phases[0].box, b = D.phases[1].box, narrow = sizeOf().w < 620;
+function initialFit() {
+  var a = D.phases[0].box, b = D.phases[1].box, narrow = sizeOf().w < 900;
   var box = narrow ? a : { x: a.x, y: Math.min(a.y, b.y), w: b.x + b.w - a.x, h: Math.max(a.y + a.h, b.y + b.h) - Math.min(a.y, b.y) };
   setView(fitBox(box, 20, 1), false);
+}
+S.t = 0; S.atStart = true;
+initialFit();
+/* keep the opening view framed when the window, device orientation or full screen changes, until the viewer moves the canvas */
+(function () {
+  var timer = null;
+  function refit() { clearTimeout(timer); timer = setTimeout(function () { if (S.atStart && !S.playing) initialFit(); }, 120); }
+  if (window.ResizeObserver) new ResizeObserver(refit).observe(stageWrap); else window.addEventListener('resize', refit);
+  var fs = document.getElementById('zfs'), box = document.getElementById('stagebox');
+  if (document.fullscreenEnabled && box.requestFullscreen) {
+    fs.hidden = false;
+    fs.onclick = function () {
+      try { if (document.fullscreenElement) { document.exitFullscreen(); } else { var r = box.requestFullscreen(); if (r && r.catch) r.catch(function () { fs.hidden = true; }); } } catch (e) { fs.hidden = true; }
+    };
+  }
 })();
 renderAt(S.t, true); renderSop(); renderNow(); renderRuns();
 requestAnimationFrame(frame);

@@ -84,7 +84,9 @@ if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
 const data = { nodes, edges, phases: PHASES, info: NODE_INFO, scenarios: SCENARIOS, mix: SAMPLE_MIX, categories: CATEGORIES };
 const json = JSON.stringify(data).replace(/</g, '\\u003c');
 const fragment = fs.readFileSync(path.join(here, 'template.html'), 'utf8').replace('__DATA__', () => json);
-const standalone = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}</style>\n</head>\n<body>\n${fragment}\n</body>\n</html>\n`;
+const DESC = 'Watch a lead travel through a real n8n automation, node by node. Nine scenarios, sample data, run charts and plain-English narration. Synthetic data only.';
+const favicon = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0d1320"/><circle cx="8" cy="16" r="3.5" fill="#ffb454"/><circle cx="24" cy="9" r="3.5" fill="#4fd6c6"/><circle cx="24" cy="23" r="3.5" fill="#ff7fb0"/><path d="M11 15 21 10M11 17l10 5" stroke="#e9eef7" stroke-width="2" fill="none"/></svg>');
+const standalone = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<meta name="description" content="${DESC}">\n<meta name="theme-color" content="#0d1320">\n<meta property="og:type" content="website">\n<meta property="og:title" content="n8n Flow Stage">\n<meta property="og:description" content="${DESC}">\n<meta name="twitter:card" content="summary">\n<link rel="icon" href="${favicon}">\n<style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}</style>\n</head>\n<body>\n${fragment}\n</body>\n</html>\n`;
 fs.writeFileSync(path.join(here, 'index.html'), standalone);
 if (process.argv[2]) fs.writeFileSync(process.argv[2], fragment);
 
