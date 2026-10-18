@@ -2,6 +2,9 @@
 
 **Status: demo project.** Built on the owner's own n8n with synthetic data. Say "demo project" or "showcase build" everywhere this is shown. Do not call it a client result. Every `[MEASURE]` field must be filled from a real test run before publishing, and any number that is a modeled estimate must say "estimate".
 
+## Short version (about 150 words, for Upwork, LinkedIn and proposals)
+Small teams sort web-form leads by hand, so hot leads wait and duplicates slip in. I built a demo automation in n8n that cleans each lead, blocks repeats, scores it against a fixed rubric with an AI, and routes it. Hot leads get a CRM record, a follow-up task and a Slack alert. Anything the AI is unsure about goes to a person. Every lead gets one log row that says why it was ranked that way. The AI has a daily cap, one repair try and a human fallback, so cost and quality stay under control. It is delivered inactive until you sign off. This is a demo project on synthetic data. Time from form to CRM: [MEASURE]. Watch it run: [Flow Stage link]. Send me your form and CRM and I will tell you what I would automate first.
+
 ## Headline (pick one, keep it plain)
 - "Every web-form lead scored, routed and in your CRM in under a minute, with a human check on anything unsure."
 - "From a shared inbox nobody triages to a hot-lead alert in Slack."
@@ -11,15 +14,17 @@ Small teams get leads from a web form and sort them by hand: read, guess who is 
 
 ## 2. Before and after
 
-| | Before (manual) | After (this automation) |
-|---|---|---|
-| Who touches a lead | A person, every time | A person only for hot leads and for anything the AI is unsure about |
-| Time from form to CRM | [MEASURE: your own timed manual run, minutes] | [MEASURE: average run time from the n8n Executions list, seconds] |
-| Time from form to "hot lead" alert | Next time someone checks the inbox | [MEASURE: run time of a hot-lead test] |
-| Duplicates | Found by luck | Blocked for 24 hours by an email fingerprint |
-| Why a lead got its rank | In someone's head | One log row per lead: score, tier, reason, confidence, road taken |
-| AI cost control | n/a | Daily cap of 25 AI calls, one repair try, then a human |
-| When something breaks | Unnoticed | The run is marked Failed on purpose and the owner is alerted |
+| | Before (manual) | After (this automation) | How measured (write this next to every number) |
+|---|---|---|---|
+| Who touches a lead | A person, every time | A person only for hot leads and for anything the AI is unsure about | Design fact, from the workflow |
+| Time from form to CRM | [MEASURE: minutes] | [MEASURE: seconds] | Before: your own timed manual run of 5 leads, averaged. After: average run time of the same 5 leads in the n8n Executions list. |
+| Time from form to "hot lead" alert | Next time someone checks the inbox | [MEASURE: seconds] | Run time of a hot-lead test in Executions |
+| Duplicates | Found by luck | Blocked for 24 hours by an email fingerprint | Test run on the instance (repeat submission) |
+| Why a lead got its rank | In someone's head | One log row per lead: score, tier, reason, confidence, road taken | Design fact, from the data table |
+| AI cost control | n/a | Daily cap of 25 AI calls, one repair try, then a human | Design fact; cost per lead: [MEASURE from the model price and the token count in a run] |
+| When something breaks | Unnoticed | The run is marked Failed on purpose and the owner is alerted | Test run of the failure path (needs credentials) |
+
+Rows marked "design fact" describe how it is built. Rows with [MEASURE] stay blank until you have a real number and its method. Do not publish a blank [MEASURE].
 
 How to fill the MEASURE fields honestly:
 1. Time yourself doing five leads by hand, with the same steps (read, judge, enter in the CRM, message a colleague). Average it.
@@ -48,6 +53,9 @@ A form posts to a protected web address. The workflow cleans the fields, rejects
 - Paths covered: [MEASURE]/9 scenarios.
 - Average run time: [MEASURE].
 - AI cost per scored lead: [MEASURE: from your model's price and the token count in the run].
+
+## 6b. Testimonial (leave empty until a real client gives one)
+> [EMPTY: a quote from a real client, in their words, with their name and role and their written permission. Do not write one yourself. Do not publish this section while it is empty.]
 
 ## 7. What it would take for your business
 Intake call, a one-page brief, a design you approve, a build you can watch, a test report, and a short handover. Timeline and price from the quote template in `playbooks/pricing-scoping.md`. State the delivery model (your n8n or theirs) and the support window in the quote.

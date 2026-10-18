@@ -239,10 +239,12 @@ details summary { cursor: pointer; font-weight: 600; }
         <button role="tab" aria-selected="false" data-tab="sop">Scenario SOP</button>
         <button role="tab" aria-selected="false" data-tab="runs">Runs and charts</button>
         <button role="tab" aria-selected="false" data-tab="replay">Replay a real run</button>
+        <button role="tab" aria-selected="false" data-tab="clients">For clients</button>
       </div>
       <div class="panel" id="tab-now"></div>
       <div class="panel" id="tab-sop" hidden></div>
       <div class="panel" id="tab-runs" hidden></div>
+      <div class="panel" id="tab-clients" hidden></div>
       <div class="panel" id="tab-replay" hidden>
         <div>
           <h3>Replay a real execution</h3>
@@ -633,6 +635,48 @@ function renderKpis() {
     '<div class="kpi' + (S.aiCalls >= 25 ? ' bad' : S.aiCalls >= 20 ? ' warn' : '') + '"><b>' + S.aiCalls + ' / 25</b><span>AI calls today</span></div>';
 }
 
+/* ---------- for clients ---------- */
+var KIT = [
+  ['rule0', 'Written permission from the client before any real client work goes public'],
+  ['case', 'Case study page (short and long version)'],
+  ['flow', 'Flow Stage link on your own subdomain'],
+  ['hero', 'Hero image'],
+  ['proof', 'Three proof screenshots (alert, CRM record, log table), synthetic data only'],
+  ['ba', 'Before and after graphic with measured numbers and how they were measured'],
+  ['rec', 'Two-minute screen recording with captions'],
+  ['pdf', 'One-page PDF'],
+  ['quote', 'Testimonial from a real client (leave empty until you have one)'],
+  ['label', '"Demo project, synthetic data" label visible on everything']
+];
+function kitLoad() { try { return JSON.parse(localStorage.getItem('flowstage-kit') || '{}'); } catch (e) { return {}; } }
+function kitSave(o) { try { localStorage.setItem('flowstage-kit', JSON.stringify(o)); } catch (e) { /* storage can be blocked */ } }
+function renderClients() {
+  var box = document.getElementById('tab-clients'), done = kitLoad();
+  var n = KIT.filter(function (k) { return done[k[0]]; }).length;
+  box.innerHTML =
+    '<div><h2 style="font-size:20px">Showing this to a client</h2><p style="margin:6px 0 0" class="muted">What goes alongside this page when you pitch. Everything here is a demo on synthetic data.</p></div>' +
+    '<div class="card"><h3>The short pitch</h3><p class="small" style="margin:0">Small teams sort web-form leads by hand, so hot leads wait and duplicates slip in. This automation cleans each lead, blocks repeats, scores it against a fixed rubric with an AI, and routes it. Hot leads get a CRM record, a follow-up task and a Slack alert. Anything the AI is unsure about goes to a person. Every lead gets one log row that says why it was ranked that way. The AI has a daily cap, one repair try and a human fallback. It is delivered inactive until you sign off.</p></div>' +
+    '<div class="card"><h3>Before and after</h3><div class="tw"><table class="runs"><thead><tr><th></th><th>Before</th><th>After</th></tr></thead><tbody>' +
+    '<tr><td>Who touches a lead</td><td>A person, every time</td><td>A person only for hot or unsure leads</td></tr>' +
+    '<tr><td>Duplicates</td><td>Found by luck</td><td>Blocked for 24 hours</td></tr>' +
+    '<tr><td>Why a lead was ranked</td><td>In someone\'s head</td><td>One log row per lead</td></tr>' +
+    '<tr><td>AI cost</td><td>n/a</td><td>Daily cap, one repair try, then a human</td></tr>' +
+    '<tr><td>Time form to CRM</td><td class="muted">to be measured</td><td class="muted">to be measured</td></tr>' +
+    '</tbody></table></div><p class="small muted" style="margin:6px 0 0">The time row stays empty until you have measured both sides. Write down how you measured. Never publish a number without its method.</p></div>' +
+    '<div class="card"><h3>Asset kit <span class="muted small" id="kitn">' + n + ' of ' + KIT.length + '</span></h3><div id="kit" style="display:flex;flex-direction:column;gap:2px">' +
+    KIT.map(function (k) { return '<label style="display:flex;gap:10px;align-items:flex-start;padding:5px 0;min-height:32px"><input type="checkbox" data-k="' + k[0] + '"' + (done[k[0]] ? ' checked' : '') + ' style="margin-top:3px"><span class="small">' + esc(k[1]) + '</span></label>'; }).join('') +
+    '</div><p class="small muted" style="margin:6px 0 0">Ticks are remembered in this browser only.</p></div>' +
+    '<div class="card"><h3>Where each piece goes</h3><ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">' +
+    '<li><b>Upwork:</b> portfolio item with the hero, proof and this link; a fixed-scope offer; a proposal that opens with their problem.</li>' +
+    '<li><b>Fiverr:</b> hero first, before and after second, recording as the gig video, three clear tiers.</li>' +
+    '<li><b>LinkedIn:</b> the story with the recording, the cost-guard post, the failure-path post.</li>' +
+    '<li><b>Website:</b> a Work page with the case study and this page.</li></ul>' +
+    '<p class="small muted" style="margin:6px 0 0">Check each platform\'s current upload limits before you export.</p></div>';
+  Array.prototype.forEach.call(box.querySelectorAll('#kit input'), function (c) {
+    c.onchange = function () { var d = kitLoad(); d[c.dataset.k] = c.checked; kitSave(d); document.getElementById('kitn').textContent = KIT.filter(function (k) { return d[k[0]]; }).length + ' of ' + KIT.length; };
+  });
+}
+
 /* ---------- controls ---------- */
 function startRun(sc, source) {
   var id = S.nextId++; var run = buildRun(sc, id, source || 'live'); S.run = run; S.scen = sc.id; S.sel = null; S.lastIdx = -2; S.lastPhase = null; S.t = 0; S.counted[id] = false;
@@ -692,8 +736,8 @@ function selectNode(name) { S.sel = name; setTab('now'); renderAt(S.t, true); if
 function setTab(t) {
   S.tab = t;
   Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) { b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'); });
-  ['now', 'sop', 'runs', 'replay'].forEach(function (k) { document.getElementById('tab-' + k).hidden = k !== t; });
-  if (t === 'now') renderNow(); if (t === 'sop') renderSop(); if (t === 'runs') renderRuns();
+  ['now', 'sop', 'runs', 'replay', 'clients'].forEach(function (k) { document.getElementById('tab-' + k).hidden = k !== t; });
+  if (t === 'now') renderNow(); if (t === 'sop') renderSop(); if (t === 'runs') renderRuns(); if (t === 'clients') renderClients();
 }
 Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) { b.onclick = function () { setTab(b.dataset.tab); }; });
 

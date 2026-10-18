@@ -2,6 +2,13 @@
 
 One finished build gives you one asset kit. Make the kit once, then cut it down for each place. Platform rules and size limits change, so check each platform's current upload limits before you export.
 
+## Rule zero: permission before any real client work goes public
+- [ ] Written permission from the client to show this work (email is enough, keep it).
+- [ ] Agreed what may be shown: name or anonymous, screenshots, numbers, a quote.
+- [ ] Their data, logos and system names are removed unless they said yes to them.
+- [ ] Gate 3 sign-off is done.
+Until this is ticked, only demo projects on synthetic data go public, labelled as demos.
+
 ## The core kit (make these once)
 1. **Case study page** (`showcase/<name>/case-study.md`). Problem, before and after, what was built, safety, proof, results, call to action.
 2. **Flow Stage link.** The animated walkthrough on your own subdomain. This is your strongest asset, because a buyer can watch the system work in two minutes.
@@ -10,7 +17,8 @@ One finished build gives you one asset kit. Make the kit once, then cut it down 
 5. **Before and after graphic.** Two columns, three rows: who touches it, how long it takes, what is recorded. Measured numbers only, with how you measured them.
 6. **Two-minute screen recording.** Play one scenario in the Flow Stage and talk through it using the phase SOP lines. Add captions, because many people watch with sound off.
 7. **One-page PDF.** The case study cut to a page, with a contact line.
-8. **Honest label.** "Demo project, synthetic data" on everything until you have a real client. When you have one, replace the demo with the client result and get the client's written permission first.
+8. **Testimonial slot.** Empty until a real client gives one. Never write or edit one yourself. Ask for it at handover, in two sentences: what the problem was and what changed.
+9. **Honest label.** "Demo project, synthetic data" on everything until you have a real client. When you have one, replace the demo with the client result and get the client's written permission first.
 
 ## Upwork
 - **Portfolio project item:** title that names the outcome ("AI lead scoring and routing for web-form leads"), a three-sentence description, the hero image, the proof screenshots, the recording, and the Flow Stage link.
@@ -35,6 +43,11 @@ One finished build gives you one asset kit. Make the kit once, then cut it down 
 - A "Work" page with the case study, the Flow Stage embedded or linked, and the PDF.
 - The subdomain for the Flow Stage, linked from the case study and from every platform profile.
 - A simple form for "send me your form and CRM", wired to a real inbox you check.
+
+## Keep it current
+- Review the kit every quarter. Drop what no longer matches how you work.
+- Re-check platform upload limits each time you export, because they change.
+- Replace the demo with a real client result when you have one and permission to show it.
 
 ## Before you publish any of it
 - [ ] Every number has a "how measured" note, or says "estimate".
