@@ -661,8 +661,10 @@ function renderClients() {
     '<tr><td>Duplicates</td><td>Found by luck</td><td>Blocked for 24 hours</td></tr>' +
     '<tr><td>Why a lead was ranked</td><td>In someone\'s head</td><td>One log row per lead</td></tr>' +
     '<tr><td>AI cost</td><td>n/a</td><td>Daily cap, one repair try, then a human</td></tr>' +
-    '<tr><td>Time form to CRM</td><td class="muted">to be measured</td><td class="muted">to be measured</td></tr>' +
-    '</tbody></table></div><p class="small muted" style="margin:6px 0 0">The time row stays empty until you have measured both sides. Write down how you measured. Never publish a number without its method.</p></div>' +
+    '<tr><td>Time form to CRM <span class="muted">(estimate)</span></td><td>About 5 minutes</td><td>About 5 to 10 seconds</td></tr>' +
+    '<tr><td>AI cost per scored lead <span class="muted">(estimate)</span></td><td>n/a</td><td>About 500 tokens in and 60 out, times your model\'s price</td></tr>' +
+    '</tbody></table></div><p class="small muted" style="margin:6px 0 0"><b>How these were worked out.</b> By hand: 1 minute to read, 1 to judge, 2 to enter in the CRM, 1 to message a colleague. Automated: AI about 2 to 4 s, CRM about 0.5 s, Slack about 0.5 s, the rest under 1 s. These are estimates, not measurements. Replace them with your own timed run and the real run times from n8n, and keep the word "estimate" until you do.</p>' +
+    '<p class="small" style="margin:8px 0 0"><b>Measured so far</b> (real runs on the showcase n8n, synthetic data): an unusable lead finished in 0.26 s and a repeat submission in 0.18 s. Both stop early, so they show the front half works, not the form-to-CRM time.</p></div>' +
     '<div class="card"><h3>Asset kit <span class="muted small" id="kitn">' + n + ' of ' + KIT.length + '</span></h3><div id="kit" style="display:flex;flex-direction:column;gap:2px">' +
     KIT.map(function (k) { return '<label style="display:flex;gap:10px;align-items:flex-start;padding:5px 0;min-height:32px"><input type="checkbox" data-k="' + k[0] + '"' + (done[k[0]] ? ' checked' : '') + ' style="margin-top:3px"><span class="small">' + esc(k[1]) + '</span></label>'; }).join('') +
     '</div><p class="small muted" style="margin:6px 0 0">Ticks are remembered in this browser only.</p></div>' +

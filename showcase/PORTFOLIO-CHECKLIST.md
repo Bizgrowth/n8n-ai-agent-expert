@@ -50,7 +50,7 @@ Until this is ticked, only demo projects on synthetic data go public, labelled a
 - Replace the demo with a real client result when you have one and permission to show it.
 
 ## Before you publish any of it
-- [ ] Every number has a "how measured" note, or says "estimate".
+- [ ] Every number is either measured with its method written beside it, or carries the word "estimate" with its assumptions. The case study already follows this. Swap estimates for measured numbers once the AI, Slack and HubSpot credentials are connected and a hot-lead run has been timed.
 - [ ] "Demo project" label is visible.
 - [ ] No real customer data, names, emails, tokens or client system names in any image or recording.
 - [ ] Owner has watched the recording end to end.
