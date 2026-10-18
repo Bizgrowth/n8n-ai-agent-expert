@@ -160,7 +160,7 @@ export const SCENARIOS = [
       p2: 'The email is not an email and consent is missing. The IF takes its false road and the reason is written to the log. The run ends here.',
     },
     concepts: ['IF', 'False branch', 'Data table', 'Cheap exits first'],
-    evidence: 'Executions: Success (a reject is a normal outcome). Data table: one row, status rejected, with the reason.',
+    evidence: 'Executions: Success (a reject is a normal outcome). Data table: one row, status rejected, with the reason. Also run for real in manual mode on the showcase instance (execution 1, synthetic data).',
   },
   {
     id: 'dup', short: 'Repeat submit', title: 'Repeat submission', freq: 'Occasional', outcome: 'Duplicate', status: 'success', calls: 0,
@@ -173,7 +173,7 @@ export const SCENARIOS = [
       p3: 'The log already has this email fingerprint from the last 24 hours. The IF takes its true road to Log duplicate. No AI, no CRM, no Slack.',
     },
     concepts: ['Data table lookup', 'De-duplication', 'Stateless to stateful'],
-    evidence: 'Data table: the processing row from the first run, plus a duplicate row from this one.',
+    evidence: 'Data table: the processing row from the first run, plus a duplicate row from this one. Also run for real in manual mode on the showcase instance (execution 2) against a seeded synthetic row.',
   },
   {
     id: 'lowconf', short: 'Low confidence', title: 'AI is not confident', freq: 'Occasional', outcome: 'Needs review', status: 'success', calls: 1,

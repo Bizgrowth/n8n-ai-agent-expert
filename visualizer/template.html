@@ -203,7 +203,7 @@ details summary { cursor: pointer; font-weight: 600; }
           <p class="small muted">In n8n, open the workflow, go to Executions, open a run and copy its data. Paste the JSON here. The nodes that ran light up in the order they started, with their real timings.</p>
         </div>
         <textarea id="paste" placeholder='{"data":{"resultData":{"runData":{"Receive lead":[{"startTime":1760000000000,"executionTime":5,"data":{"main":[[{"json":{}}]]}}]}}}}' aria-label="Execution JSON"></textarea>
-        <div class="chips"><button class="btn" id="dopaste" type="button">Replay it</button><button class="btn ghost" id="sample-paste" type="button">Fill with a tiny example</button></div>
+        <div class="chips"><button class="btn" id="dopaste" type="button">Replay it</button><button class="btn ghost" id="sample-paste" type="button">Fill with a real example (execution 1)</button></div>
         <p class="small" id="pastemsg" role="status"></p>
       </div>
     </aside>
@@ -673,11 +673,11 @@ document.getElementById('dopaste').onclick = function () { replay(document.getEl
 document.getElementById('sample-paste').onclick = function () {
   var t0 = 1760780000000;
   document.getElementById('paste').value = JSON.stringify({ data: { resultData: { runData: {
-    'Receive lead': [{ startTime: t0, executionTime: 6, data: { main: [[{ json: { body: { email: 'sam.ortiz@example.com' } } }]] } }],
-    'Settings': [{ startTime: t0 + 8, executionTime: 3, data: { main: [[{ json: { hot_min: 70 } }]] } }],
-    'Clean the lead': [{ startTime: t0 + 12, executionTime: 4, data: { main: [[{ json: { email: 'sam.ortiz@example.com' } }]] } }],
-    'Is the lead usable?': [{ startTime: t0 + 17, executionTime: 2, data: { main: [[{ json: { ok: true } }]] } }],
-    'Log rejected lead': [{ startTime: t0 + 20, executionTime: 38, data: { main: [[{ json: { status: 'rejected' } }]] } }]
+    'Receive lead': [{ startTime: t0, executionTime: 1, data: { main: [[{ json: { body: { email: 'not-an-email', consent: false } } }]] } }],
+    'Settings': [{ startTime: t0 + 8, executionTime: 5, data: { main: [[{ json: { hot_min: 70 } }]] } }],
+    'Clean the lead': [{ startTime: t0 + 15, executionTime: 164, data: { main: [[{ json: { email: 'not-an-email', consent: false } }]] } }],
+    'Is the lead usable?': [{ startTime: t0 + 180, executionTime: 10, data: { main: [[], [{ json: { email: 'not-an-email' } }]] } }],
+    'Log rejected lead': [{ startTime: t0 + 190, executionTime: 46, data: { main: [[{ json: { status: 'rejected', reject_reason: 'invalid_email' } }], []] } }]
   } } } }, null, 2);
 };
 

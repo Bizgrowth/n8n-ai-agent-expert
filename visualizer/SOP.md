@@ -88,7 +88,7 @@ A bad email, no company, or no consent. It is rejected at the front door with a 
 
 Nodes in order: Receive lead → Settings → Clean the lead → Is the lead usable? → Log rejected lead
 
-Evidence to open in n8n: Executions: Success (a reject is a normal outcome). Data table: one row, status rejected, with the reason.
+Evidence to open in n8n: Executions: Success (a reject is a normal outcome). Data table: one row, status rejected, with the reason. Also run for real in manual mode on the showcase instance (execution 1, synthetic data).
 
 ### Repeat submission (Occasional)
 
@@ -106,7 +106,7 @@ The same person submits twice within 24 hours. The second one is logged as a dup
 
 Nodes in order: Receive lead → Settings → Clean the lead → Is the lead usable? → Seen this email recently? → Is it a repeat? → Log duplicate
 
-Evidence to open in n8n: Data table: the processing row from the first run, plus a duplicate row from this one.
+Evidence to open in n8n: Data table: the processing row from the first run, plus a duplicate row from this one. Also run for real in manual mode on the showcase instance (execution 2) against a seeded synthetic row.
 
 ### AI is not confident (Occasional)
 
