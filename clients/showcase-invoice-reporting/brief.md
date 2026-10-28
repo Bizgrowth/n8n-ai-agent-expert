@@ -73,4 +73,4 @@ Still open (smaller, can be settled in design):
 ## Summary & readiness
 A weekly schedule pulls invoices and sales from a demo accounting source, builds a report with totals, overdue amounts and top customers, checks the totals against the source, and sends a summary. A second branch finds overdue invoices, drafts tiered reminders, skips anything already reminded or already paid, and asks you to approve each message before it goes out. Everything uses synthetic data and is built inactive on your own n8n. **Ready for design? Yes, once you approve Gate 1.** The five main decisions are recorded above. The remaining small items (Slack channel, LLM and key, single or multi-currency, n8n version) can be settled in design.
 
-**Gate 1 — Owner approval:** [ ] approved on ____
+**Gate 1 — Owner approval:** [x] approved on 2026-10-28
