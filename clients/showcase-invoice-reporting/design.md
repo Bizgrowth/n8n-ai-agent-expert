@@ -540,4 +540,7 @@ If the instance were ever on n8n Cloud, billing is by executions; I did not chec
 
 **Next step:** after you approve in plain words, the builder produces inactive workflow JSON for W1, W2 and W3 (the shared alert is reused); the reviewer lints it; a separate tester runs the cases above. Nothing is activated by the agent.
 
-**Gate 1b — Owner approval:** [ ] pending
+**Owner decisions recorded (answered 2026-10-30):** (1) approval style: Gmail Approve/Decline with a saved draft on Decline; (2) currency: report per currency, no conversion; (3) schedule and rules: all proposed defaults accepted (report Monday 07:00, scan 08:00, 48h wait, skip final per tier, max 10 drafts, tolerance 0, confidence 0.70, tiers 1-7 / 8-30 / 31+, test address only); (4) structure: W3 as a sub-workflow, plus a specialist review pass over the nine step cards before the build.
+**Still needed from the owner:** Slack channel, time zone, n8n version and edition, test mailbox address, LLM choice (default: existing Anthropic credential), and a plain-words "approved" for the whole design.
+
+**Gate 1b — Owner approval:** [ ] pending (decisions recorded; waiting for the specialist review and the owner's plain-words approval)
