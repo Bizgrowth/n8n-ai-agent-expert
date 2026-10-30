@@ -1,0 +1,821 @@
+<title>n8n Flow Stage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: one working stage. Header with scenario picker, canvas with transport on the left, tabbed explainer on the right. Stacks on phones. */
+:root {
+  --bg: #0d1320; --surface: #141c2d; --surface-2: #1b2539; --line: #283550; --fg: #e9eef7; --muted: #95a3bd;
+  --accent: #ffb454; --run: #4fd6c6; --ok: #5ad68f; --warn: #f2c14e; --bad: #ff6f6f; --skip: #4b5a77;
+  --p1: #7aa2ff; --p2: #4fd6c6; --p3: #b78cff; --p4: #f2c14e; --p5: #ff7fb0; --p6: #ff9f5a; --p7: #5ad68f; --p8: #8fb4d9;
+  --c-trigger: #ff9f5a; --c-core: #7aa2ff; --c-logic: #b78cff; --c-data: #4fd6c6; --c-ai: #ff7fb0; --c-chat: #8f86ff; --c-crm: #ff7a59; --c-stop: #ff6f6f;
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f2f5fa; --surface: #ffffff; --surface-2: #eaeff7; --line: #d3dbe9; --fg: #121a2a; --muted: #566480;
+  --accent: #a85a00; --run: #0b8a7d; --ok: #1a8a4a; --warn: #8f6200; --bad: #c0392b; --skip: #a3afc4;
+  --p1: #3d62d6; --p2: #0b8a7d; --p3: #7d4fd6; --p4: #9a6b00; --p5: #c2347a; --p6: #c25a13; --p7: #1a8a4a; --p8: #4a7399;
+  --c-trigger: #c25a13; --c-core: #3d62d6; --c-logic: #7d4fd6; --c-data: #0b8a7d; --c-ai: #c2347a; --c-chat: #5a4fd6; --c-crm: #c2442a; --c-stop: #c0392b;
+  color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f2f5fa; --surface: #ffffff; --surface-2: #eaeff7; --line: #d3dbe9; --fg: #121a2a; --muted: #566480;
+  --accent: #a85a00; --run: #0b8a7d; --ok: #1a8a4a; --warn: #8f6200; --bad: #c0392b; --skip: #a3afc4;
+  --p1: #3d62d6; --p2: #0b8a7d; --p3: #7d4fd6; --p4: #9a6b00; --p5: #c2347a; --p6: #c25a13; --p7: #1a8a4a; --p8: #4a7399;
+  --c-trigger: #c25a13; --c-core: #3d62d6; --c-logic: #7d4fd6; --c-data: #0b8a7d; --c-ai: #c2347a; --c-chat: #5a4fd6; --c-crm: #c2442a; --c-stop: #c0392b;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-body);
+  padding-block: 14px 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, select, textarea, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.15; text-wrap: balance; }
+.wrap { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; justify-content: space-between; }
+.brand h1 { font-size: 22px; letter-spacing: -0.01em; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.kpis { display: flex; flex-wrap: wrap; gap: 8px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; min-width: 96px; }
+.kpi b { display: block; font: 600 18px/1.2 var(--font-mono); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.kpi.bad b { color: var(--bad); } .kpi.warn b { color: var(--warn); }
+.iconbtn { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.iconbtn:hover { border-color: var(--accent); }
+.scenarios { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.scn { flex: 0 0 auto; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; min-width: 150px; }
+.scn b { display: block; font-weight: 600; font-size: 13px; }
+.scn small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.scn[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 1px var(--accent) inset; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 12px; align-items: start; }
+.stagebox { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+#stagewrap { position: relative; height: clamp(340px, 60vh, 820px); height: clamp(340px, 60dvh, 820px); background-color: var(--bg);
+  background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 22px 22px; touch-action: none; }
+#stage { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+#stage.drag { cursor: grabbing; }
+.zoomctl { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; }
+.zoomctl button { width: 34px; height: 34px; padding: 0; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; }
+.legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; max-width: calc(100% - 20px); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.caption { padding: 10px 14px; border-top: 1px solid var(--line); background: var(--surface-2); min-height: 64px; }
+.caption .step { font: 500 11px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.caption .line { font-size: 15px; margin-top: 2px; }
+.caption .line b { font-family: var(--font-display); }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.transport button, .transport select { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+.transport button.primary { background: var(--accent); border-color: var(--accent); color: #11131a; font-weight: 600; min-width: 84px; }
+.transport button:disabled { opacity: .5; cursor: default; }
+.transport label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+#scrub { flex: 1 1 160px; min-width: 120px; accent-color: var(--accent); }
+.timecode { font: 500 12px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.phasebar { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 12px; }
+.pchip { flex: 0 0 auto; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+.pchip i { width: 9px; height: 9px; border-radius: 50%; }
+.pchip[aria-current="true"] { border-color: var(--fg); background: var(--surface-2); font-weight: 600; }
+.side { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-width: 0; max-height: 820px; }
+.tabs { display: flex; flex: 0 0 auto; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { flex: 1 0 auto; background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.panel { padding: 14px; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.panel[hidden] { display: none !important; }
+.chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 2px 9px; font-size: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.status { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; border-radius: 6px; padding: 2px 7px; border: 1px solid currentColor; }
+.status.success { color: var(--ok); } .status.error, .status.failed { color: var(--bad); } .status.running { color: var(--run); } .status.idle { color: var(--muted); }
+.card { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.card h3 { font-size: 15px; margin-bottom: 4px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+pre.json { margin: 0; font: 12px/1.5 var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-word; }
+.jk { color: var(--run); } .js { color: var(--accent); } .jn { color: var(--p3); }
+.beat { display: grid; grid-template-columns: 10px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); opacity: .62; }
+.beat:first-of-type { border-top: 0; }
+.beat.now { opacity: 1; }
+.beat .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
+.beat h4 { margin: 0; font: 600 13px var(--font-display); }
+.beat p { margin: 2px 0 0; font-size: 13px; }
+.say { border-left: 3px solid var(--accent); padding: 2px 0 2px 10px; font-style: italic; color: var(--fg); margin-top: 4px; }
+.charts { display: flex; flex-direction: column; gap: 14px; }
+.charts svg { width: 100%; height: auto; display: block; }
+.ctext { fill: var(--muted); font: 11px var(--font-body); } .cval { fill: var(--fg); font: 500 11px var(--font-mono); }
+table.runs { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+table.runs th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+table.runs td { padding: 5px 6px; border-bottom: 1px solid var(--line); }
+table.runs tr[data-run] { cursor: pointer; } table.runs tr[data-run]:hover { background: var(--surface-2); }
+table.runs tr.sel { background: var(--surface-2); outline: 1px solid var(--accent); }
+.tw { overflow-x: auto; }
+textarea { width: 100%; min-height: 120px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: 12px var(--font-mono); resize: vertical; }
+.btn { background: var(--accent); color: #11131a; border: 0; border-radius: 8px; padding: 7px 14px; font-weight: 600; }
+.btn.ghost { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+details summary { cursor: pointer; font-weight: 600; }
+/* svg stage */
+.edge { fill: none; stroke: var(--skip); stroke-width: 2; }
+.edge.sub { stroke-dasharray: 4 4; stroke-width: 1.5; }
+.edge.done { stroke: var(--ok); stroke-width: 3; }
+.edge.err { stroke: var(--bad); stroke-width: 3; }
+.edge.live { stroke: var(--run); stroke-width: 3; }
+.elabel { font: 500 10px var(--font-mono); fill: var(--muted); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.itemsbadge rect { fill: var(--surface); stroke: var(--ok); } .itemsbadge text { font: 500 10px var(--font-mono); fill: var(--ok); }
+.node rect.tile { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
+.node text { fill: var(--fg); font: 500 12px var(--font-body); pointer-events: none; }
+.node .ibox { stroke: none; }
+.node .ico { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.node { cursor: pointer; transition: opacity .25s; }
+.node.dim { opacity: .38; }
+.node.hide { opacity: .1; }
+.node.sel rect.tile { stroke: var(--fg); stroke-width: 2.5; }
+.node.running rect.tile { stroke: var(--run); stroke-width: 3; }
+.node.success rect.tile { stroke: var(--ok); stroke-width: 2; }
+.node.error rect.tile { stroke: var(--bad); stroke-width: 3; }
+.node .pulse { fill: none; stroke: var(--run); stroke-width: 2; opacity: 0; }
+.node.running .pulse { animation: pulse 1.1s ease-out infinite; }
+@keyframes pulse { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.12); } }
+.node .pulse { transform-box: fill-box; transform-origin: center; }
+.badge circle { stroke: none; } .badge text { font: 700 11px var(--font-body); fill: #fff; text-anchor: middle; }
+.badge.none { display: none; }
+.badge.b-success circle { fill: var(--ok); } .badge.b-error circle { fill: var(--bad); } .badge.b-running circle { fill: var(--run); }
+.phasebox { fill: none; stroke-width: 2; stroke-dasharray: 8 6; opacity: 0; transition: opacity .3s; }
+.phasebox.on { opacity: .9; }
+.phaselbl { font: 700 13px var(--font-display); opacity: 0; transition: opacity .3s; }
+.phaselbl.on { opacity: 1; }
+#token { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+.lod .node text { display: none; }
+/* Large monitors and projectors */
+@media (min-width: 1700px) {
+  .wrap { max-width: 1840px; } body { font-size: 15px; }
+  .main { grid-template-columns: minmax(0, 1fr) 470px; }
+  #stagewrap { height: clamp(520px, 68vh, 940px); height: clamp(520px, 68dvh, 940px); }
+  .caption .line { font-size: 17px; } .brand h1 { font-size: 26px; }
+}
+/* Tablets and small laptops: canvas on top, explainer below */
+@media (max-width: 1100px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .side { max-height: none; }
+  #stagewrap { height: clamp(380px, 56vh, 720px); height: clamp(380px, 56dvh, 720px); }
+}
+/* Phones */
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  .top { gap: 8px; } .brand h1 { font-size: 19px; } .brand p { font-size: 12px; }
+  .brand { flex: 1 1 0; min-width: 0; } .iconbtn { order: 2; } .kpis { order: 3; width: 100%; flex-wrap: nowrap; } .kpi { flex: 1 1 0; min-width: 0; padding: 5px 8px; } .kpi b { font-size: 16px; } .kpi span { font-size: 10px; }
+  .scn { min-width: 132px; }
+  #stagewrap { height: clamp(300px, 46vh, 460px); height: clamp(300px, 46dvh, 460px); }
+  .legend { display: none; }
+  .caption { padding: 8px 12px; } .caption .line { font-size: 14px; }
+  .transport { gap: 8px; padding: 8px 12px; }
+  .transport button.primary { flex: 1 1 30%; }
+  #scrub { flex: 1 1 100%; order: 10; } .timecode { order: 11; margin-left: auto; }
+  .phasebar { padding: 0 12px 10px; }
+  .panel { padding: 12px; }
+  pre.json { max-height: 220px; }
+}
+/* Touch screens: comfortable targets */
+@media (pointer: coarse) {
+  .zoomctl button { width: 44px; height: 44px; font-size: 18px; }
+  .transport button, .transport select, .iconbtn, .tabs button { min-height: 44px; }
+  .scn { min-height: 52px; } .pchip { min-height: 38px; padding: 6px 13px; }
+  .transport input[type=checkbox] { width: 22px; height: 22px; }
+  .transport label { min-height: 44px; } #scrub { height: 36px; }
+  .btn { min-height: 44px; }
+}
+/* Short landscape screens (phones turned sideways) */
+@media (max-height: 520px) and (orientation: landscape) {
+  #stagewrap { height: 72vh; height: 72dvh; } .caption { min-height: 0; padding: 6px 12px; }
+}
+/* Full screen presenting */
+.stagebox:fullscreen { background: var(--bg); border-radius: 0; }
+.stagebox:fullscreen #stagewrap { height: auto; flex: 1 1 auto; min-height: 0; }
+.stagebox:fullscreen .caption .line { font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .node.running .pulse { animation: none; opacity: .8; } .node { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>n8n Flow Stage</h1>
+      <p id="subtitle">Showcase AI Lead Qualifier: watch a lead travel through the real workflow, one node at a time.</p>
+    </div>
+    <div class="kpis" id="kpis" aria-label="Session totals"></div>
+    <button class="iconbtn" id="themebtn" type="button" aria-label="Switch light and dark theme">Theme</button>
+  </header>
+
+  <div class="scenarios" id="scenarios" role="group" aria-label="Scenarios"></div>
+
+  <div class="main">
+    <section class="stagebox" id="stagebox" aria-label="Workflow canvas">
+      <div id="stagewrap">
+        <svg id="stage" role="img" aria-label="Workflow canvas showing the lead qualifier nodes and connections"></svg>
+        <div class="zoomctl">
+          <button type="button" id="zin" aria-label="Zoom in">+</button>
+          <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
+          <button type="button" id="zfit" aria-label="Show the whole workflow" title="Show the whole workflow">&#9635;</button>
+          <button type="button" id="zfs" aria-label="Full screen" title="Full screen" hidden>&#9974;</button>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="caption" aria-live="polite"><div class="step" id="capstep"></div><div class="line" id="capline"></div></div>
+      <div class="transport">
+        <button type="button" id="prev" aria-label="Previous step">&#9664; Step</button>
+        <button type="button" id="play" class="primary">Play</button>
+        <button type="button" id="next" aria-label="Next step">Step &#9654;</button>
+        <label>Speed
+          <select id="speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select>
+        </label>
+        <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Position in this run">
+        <span class="timecode" id="timecode">0.0s</span>
+        <label><input type="checkbox" id="follow" checked> Follow</label>
+        <label><input type="checkbox" id="onlypath"> Only this path</label>
+        <button type="button" id="runall">Run all scenarios</button>
+      </div>
+      <div class="phasebar" id="phasebar" role="group" aria-label="Jump to a phase"></div>
+    </section>
+
+    <aside class="side">
+      <div class="tabs" role="tablist" id="tabs">
+        <button role="tab" aria-selected="true" data-tab="now">This step</button>
+        <button role="tab" aria-selected="false" data-tab="sop">Scenario SOP</button>
+        <button role="tab" aria-selected="false" data-tab="runs">Runs and charts</button>
+        <button role="tab" aria-selected="false" data-tab="replay">Replay a real run</button>
+        <button role="tab" aria-selected="false" data-tab="clients">For clients</button>
+      </div>
+      <div class="panel" id="tab-now"></div>
+      <div class="panel" id="tab-sop" hidden></div>
+      <div class="panel" id="tab-runs" hidden></div>
+      <div class="panel" id="tab-clients" hidden></div>
+      <div class="panel" id="tab-replay" hidden>
+        <div>
+          <h3>Replay a real execution</h3>
+          <p class="small muted">In n8n, open the workflow, go to Executions, open a run and copy its data. Paste the JSON here. The nodes that ran light up in the order they started, with their real timings.</p>
+        </div>
+        <textarea id="paste" placeholder='{"data":{"resultData":{"runData":{"Receive lead":[{"startTime":1760000000000,"executionTime":5,"data":{"main":[[{"json":{}}]]}}]}}}}' aria-label="Execution JSON"></textarea>
+        <div class="chips"><button class="btn" id="dopaste" type="button">Replay it</button><button class="btn ghost" id="sample-paste" type="button">Fill with a real example (execution 1)</button></div>
+        <p class="small" id="pastemsg" role="status"></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(function () {
+'use strict';
+var D = JSON.parse(document.getElementById('data').textContent);
+var W = 168, H = 64, NS = 'http://www.w3.org/2000/svg';
+var byName = {}; D.nodes.forEach(function (n) { byName[n.id] = n; });
+var edgeOf = {}; D.edges.forEach(function (e) { (edgeOf[e.from + '>' + e.to] = edgeOf[e.from + '>' + e.to] || []).push(e); });
+var phaseOf = {}; D.phases.forEach(function (p) { p.nodes.forEach(function (n) { phaseOf[n] = p; }); });
+var scenById = {}; D.scenarios.forEach(function (s) { scenById[s.id] = s; });
+
+/* ---------- icons (24px grid, drawn for this tool; swap in official app icons by editing ICONS) ---------- */
+var ICONS = {
+  webhook: '<circle cx="6" cy="17" r="2.4"/><circle cx="18" cy="17" r="2.4"/><circle cx="12" cy="6" r="2.4"/><path d="M11 8.2 7.2 14.8M13 8.2l3.8 6.6M8.6 17h6.8"/>',
+  set: '<path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="17" cy="17" r="1.8"/>',
+  if: '<circle cx="12" cy="4.5" r="1.8"/><path d="M12 6.3V11m0 0L6 18.5M12 11l6 7.5"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="19" r="1.5"/>',
+  switch: '<circle cx="12" cy="4.5" r="1.8"/><path d="M12 6.3V10M12 10 5.5 19M12 10v9M12 10l6.5 9"/>',
+  dataTable: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M4 15h16M10 5v14"/>',
+  aggregate: '<path d="M4 5h16l-6 8v6l-4-2v-4z"/>',
+  chain: '<path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/><path d="M19 16l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+  model: '<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>',
+  parser: '<path d="M9 4c-3 0-3 2-3 4s0 3-2 4c2 1 2 2 2 4s0 4 3 4M15 4c3 0 3 2 3 4s0 3 2 4c-2 1-2 2-2 4s0 4-3 4"/>',
+  slack: '<path d="M4 5h16v11h-9l-4 4v-4H4z"/><path d="M10 8.5l-1 5M14 8.5l-1 5M8 10h8M7.5 12.5h8"/>',
+  hubspot: '<circle cx="12" cy="12" r="3"/><path d="M12 9V5.6M14.6 13.5l3 1.8M9.4 13.5l-3 1.8"/><circle cx="12" cy="4" r="1.6"/><circle cx="18.6" cy="16.6" r="1.6"/><circle cx="5.4" cy="16.6" r="1.6"/>',
+  noop: '<circle cx="12" cy="12" r="8"/><path d="M8.5 12h7"/>',
+  stop: '<path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z"/><path d="M12 8v5M12 16v.4"/>'
+};
+var CAT = { trigger: 'var(--c-trigger)', core: 'var(--c-core)', logic: 'var(--c-logic)', data: 'var(--c-data)', ai: 'var(--c-ai)', chat: 'var(--c-chat)', crm: 'var(--c-crm)', stop: 'var(--c-stop)' };
+var LEGEND = [['trigger', 'Trigger'], ['core', 'Edit Fields / No-op'], ['logic', 'IF / Switch'], ['data', 'Data table / Aggregate'], ['ai', 'AI'], ['chat', 'Slack'], ['crm', 'HubSpot'], ['stop', 'Stop and Error']];
+var NOMINAL = { trigger: 6, core: 4, logic: 3, data: 45, ai: 1650, chat: 380, crm: 460, stop: 2, sub: 0 };
+
+/* ---------- state ---------- */
+var S = { scen: 'hot', run: null, t: 0, playing: false, speed: 1, follow: true, only: false, queue: [], sel: null, tab: 'now',
+  view: { x: 0, y: 0, k: 0.2 }, target: null, lastIdx: -2, lastPhase: null, counted: {}, aiCalls: 0, nextId: 126, history: [], tally: {} };
+
+/* ---------- build stage ---------- */
+var svg = document.getElementById('stage');
+var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+D.nodes.forEach(function (n) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); maxX = Math.max(maxX, n.x + W); maxY = Math.max(maxY, n.y + H); });
+function el(tag, attrs, parent) {
+  var e = document.createElementNS(NS, tag), style = '';
+  for (var k in attrs) { var v = attrs[k]; if ((k === 'fill' || k === 'stroke') && typeof v === 'string' && v.indexOf('var(') === 0) style += k + ':' + v + ';'; else e.setAttribute(k, v); }
+  if (style) e.setAttribute('style', style);
+  if (parent) parent.appendChild(e); return e;
+}
+var defs = el('defs', {}, svg);
+var vp = el('g', { id: 'viewport' }, svg);
+var gBoxes = el('g', {}, vp), gEdges = el('g', {}, vp), gLabels = el('g', {}, vp), gNodes = el('g', {}, vp);
+var token = el('circle', { id: 'token', r: 9, cx: -100, cy: -100, opacity: 0 }, vp);
+var nodeEls = {}, edgeEls = {}, boxEls = {};
+
+function wrap(text, n, max) {
+  var words = text.split(' '), lines = [], cur = '';
+  words.forEach(function (w) { if ((cur + ' ' + w).trim().length > n && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
+  if (cur) lines.push(cur);
+  if (lines.length > max) { lines = lines.slice(0, max); lines[max - 1] = lines[max - 1].replace(/.{0,2}$/, '…'); }
+  return lines;
+}
+function edgePath(e) {
+  var a = byName[e.from], b = byName[e.to], sx, sy, tx, ty;
+  if (e.sub) { sx = a.x + W / 2; sy = a.y; tx = b.x + W / 2; ty = b.y + H; return 'M' + sx + ',' + sy + ' L' + tx + ',' + ty; }
+  sx = a.x + W; sy = a.y + H / 2; tx = b.x; ty = b.y + H / 2;
+  var dx = Math.max(40, Math.abs(tx - sx) * 0.5);
+  if (Math.abs(ty - sy) < 6 && tx - sx > 260) return 'M' + sx + ',' + sy + ' C' + (sx + 60) + ',' + (sy + 120) + ' ' + (tx - 60) + ',' + (ty + 120) + ' ' + tx + ',' + ty;
+  return 'M' + sx + ',' + sy + ' C' + (sx + dx) + ',' + sy + ' ' + (tx - dx) + ',' + ty + ' ' + tx + ',' + ty;
+}
+D.phases.forEach(function (p) {
+  var xs = [], ys = [];
+  p.nodes.forEach(function (nm) { var n = byName[nm]; if (n) { xs.push(n.x, n.x + W); ys.push(n.y, n.y + H); } });
+  var x0 = Math.min.apply(null, xs) - 26, y0 = Math.min.apply(null, ys) - 40, x1 = Math.max.apply(null, xs) + 26, y1 = Math.max.apply(null, ys) + 26;
+  p.box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  var r = el('rect', { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 18, class: 'phasebox', stroke: 'var(--p' + p.color + ')' }, gBoxes);
+  var t = el('text', { x: x0 + 12, y: y0 + 22, class: 'phaselbl', fill: 'var(--p' + p.color + ')' }, gBoxes);
+  t.textContent = p.name + ' · ' + p.sub;
+  boxEls[p.id] = { r: r, t: t };
+});
+D.edges.forEach(function (e) {
+  var p = el('path', { d: edgePath(e), class: 'edge' + (e.sub ? ' sub' : '') }, gEdges);
+  var o = { path: p, e: e, label: null, badge: null };
+  if (e.label && !e.sub) {
+    var len = p.getTotalLength(), pt = p.getPointAtLength(Math.min(len * 0.25, 60));
+    var lt = el('text', { class: 'elabel', x: pt.x + 4, y: pt.y - 6 }, gLabels); lt.textContent = e.label; o.label = lt;
+  }
+  edgeEls[e.id] = o;
+});
+D.nodes.forEach(function (n) {
+  var g = el('g', { class: 'node', tabindex: 0, role: 'button', 'aria-label': n.id, transform: 'translate(' + n.x + ',' + n.y + ')' }, gNodes);
+  el('rect', { class: 'pulse', width: W, height: H, rx: 12 }, g);
+  el('rect', { class: 'tile', width: W, height: H, rx: 12 }, g);
+  el('rect', { class: 'ibox', x: 9, y: 12, width: 40, height: 40, rx: 10, fill: CAT[n.cat] }, g);
+  var ig = el('g', { transform: 'translate(13,16) scale(1.35)', class: 'ico' }, g); ig.innerHTML = ICONS[n.icon] || ICONS.noop;
+  wrap(n.id, 17, 3).forEach(function (ln, i, arr) { var t = el('text', { x: 58, y: 32 - (arr.length - 1) * 7 + i * 14 }, g); t.textContent = ln; });
+  el('circle', { cx: W - 12, cy: H - 12, r: 4.5, fill: 'var(--p' + (phaseOf[n.id] ? phaseOf[n.id].color : 8) + ')' }, g);
+  var bg = el('g', { class: 'badge none', transform: 'translate(' + (W - 6) + ',6)' }, g);
+  el('circle', { r: 9 }, bg); var bt = el('text', { y: 4 }, bg);
+  g.addEventListener('click', function () { selectNode(n.id); });
+  g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectNode(n.id); } });
+  nodeEls[n.id] = { g: g, badge: bg, bt: bt, key: '' };
+});
+
+/* ---------- view / camera ---------- */
+var stageWrap = document.getElementById('stagewrap');
+function applyView() { vp.setAttribute('transform', 'translate(' + S.view.x + ',' + S.view.y + ') scale(' + S.view.k + ')'); svg.classList.toggle('lod', S.view.k < 0.42); }
+function sizeOf() { var r = stageWrap.getBoundingClientRect(); return { w: r.width, h: r.height }; }
+function fitBox(b, pad, maxK) {
+  var s = sizeOf(), k = Math.min((s.w - pad * 2) / b.w, (s.h - pad * 2) / b.h, maxK || 1.2);
+  return { k: k, x: (s.w - b.w * k) / 2 - b.x * k, y: (s.h - b.h * k) / 2 - b.y * k };
+}
+function setView(v, animate) { if (animate) S.target = v; else { S.view = { x: v.x, y: v.y, k: v.k }; S.target = null; applyView(); } }
+function fitAll() { S.atStart = false; setView(fitBox({ x: minX - 40, y: minY - 50, w: maxX - minX + 80, h: maxY - minY + 100 }, 14, 1), true); }
+function centerOn(name, k) {
+  S.atStart = false;
+  var n = byName[name], s = sizeOf(); k = k || Math.max(S.view.k, 0.9);
+  setView({ k: k, x: s.w / 2 - (n.x + W / 2) * k, y: s.h / 2 - (n.y + H / 2) * k }, true);
+}
+function zoomAt(f, cx, cy) {
+  S.atStart = false;
+  var k = Math.max(0.12, Math.min(2.2, S.view.k * f)), s = sizeOf(); cx = cx == null ? s.w / 2 : cx; cy = cy == null ? s.h / 2 : cy;
+  S.view = { k: k, x: cx - (cx - S.view.x) * (k / S.view.k), y: cy - (cy - S.view.y) * (k / S.view.k) }; S.target = null; applyView();
+}
+var drag = null, pinch = null, ptrs = {};
+function pdist() { var a = Object.keys(ptrs).map(function (k) { return ptrs[k]; }); return { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, cx: (a[0].x + a[1].x) / 2, cy: (a[0].y + a[1].y) / 2 }; }
+svg.addEventListener('pointerdown', function (ev) {
+  if (ev.target.closest && ev.target.closest('.node')) return;
+  ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; S.atStart = false; S.target = null;
+  try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+  if (Object.keys(ptrs).length === 2) { pinch = { d: pdist().d, k: S.view.k }; drag = null; }
+  else { drag = { x: ev.clientX, y: ev.clientY, vx: S.view.x, vy: S.view.y }; svg.classList.add('drag'); }
+});
+svg.addEventListener('pointermove', function (ev) {
+  if (!ptrs[ev.pointerId]) return; ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+  if (pinch && Object.keys(ptrs).length === 2) { var p = pdist(), r = svg.getBoundingClientRect(); zoomAt((pinch.k * p.d / pinch.d) / S.view.k, p.cx - r.left, p.cy - r.top); return; }
+  if (!drag) return; S.view.x = drag.vx + ev.clientX - drag.x; S.view.y = drag.vy + ev.clientY - drag.y; applyView();
+});
+function endDrag(ev) {
+  delete ptrs[ev.pointerId]; pinch = null; drag = null; svg.classList.remove('drag');
+  var ids = Object.keys(ptrs); if (ids.length === 1) { var q = ptrs[ids[0]]; drag = { x: q.x, y: q.y, vx: S.view.x, vy: S.view.y }; }
+}
+svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
+svg.addEventListener('wheel', function (ev) { ev.preventDefault(); var r = svg.getBoundingClientRect(); zoomAt(ev.deltaY < 0 ? 1.12 : 0.89, ev.clientX - r.left, ev.clientY - r.top); }, { passive: false });
+document.getElementById('zin').onclick = function () { zoomAt(1.25); };
+document.getElementById('zout').onclick = function () { zoomAt(0.8); };
+document.getElementById('zfit').onclick = fitAll;
+
+/* ---------- sample data per node ---------- */
+function hashy(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return ('00000000' + h.toString(16)).slice(-8); }
+function sampleFor(name, sc, execId) {
+  var L = sc.lead, A = sc.ai, id = 'L-20261018-093201-' + execId, f = hashy(L.email);
+  var cleaned = { lead_id: id, email: L.email.toLowerCase(), first_name: L.name.split(' ')[0], last_name: L.name.split(' ').slice(1).join(' '), company: L.company, role: L.role, consent: !!L.consent, dedupe_key: f + f + f + f + f + f + f + f };
+  var rec = { lead_id: id, status: sc.status === 'failed' ? 'scored' : (A && !sc.badFirst ? 'scored' : (A ? 'scored' : 'review')), decision_path: '', score: A ? A.score : '', tier: A ? A.tier : '', confidence: A ? A.confidence : '' };
+  switch (name) {
+    case 'Receive lead': return { headers: { 'x-lead-key': '••••••••' }, body: { name: L.name, email: L.email, company: L.company, role: L.role, company_size: L.size, budget: L.budget, timeline: L.timeline, message: L.message, consent: L.consent } };
+    case 'Settings': return { hot_min: 70, warm_min: 40, confidence_threshold: 0.7, daily_ai_cap: 25, rubric_version: 'rubric_v1', prompt_version: 'prompt_v1' };
+    case 'Clean the lead': return cleaned;
+    case 'Is the lead usable?': return { email_ok: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(L.email), company_ok: !!L.company, consent_ok: !!L.consent, goes: (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(L.email) && L.company && L.consent) ? 'true road' : 'false road' };
+    case 'Log rejected lead': return { row: { lead_id: id, status: 'rejected', reject_reason: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(L.email) ? 'invalid_email' : !L.company ? 'missing_company' : 'no_consent', ai_calls_used: 0 } };
+    case 'Seen this email recently?': return sc.id === 'dup' ? { dedupe_key: cleaned.dedupe_key, received_at: '2026-10-18T09:31:21Z', status: 'processing' } : { note: 'No row found for this fingerprint in the last 24 hours' };
+    case 'Is it a repeat?': return { repeat: sc.id === 'dup' };
+    case 'Log duplicate': return { row: { lead_id: id, status: 'duplicate', ai_calls_used: 0 } };
+    case 'Claim this lead': return { row: { lead_id: id, status: 'processing', ai_calls_used: 0 } };
+    case "Count today's AI calls": return { rows_found: sc.capHit ? 25 : 18 };
+    case "Combine today's rows": return { rows: '[' + (sc.capHit ? 25 : 18) + ' rows]' };
+    case 'Daily AI limit reached?': return { calls_today: sc.capHit ? 25 : 18, cap: 25, reached: !!sc.capHit };
+    case 'Mark: AI limit reached': return { decision_path: 'review-cap', status: 'cap_reached', ai_calls_used: 0 };
+    case 'Prepare AI input': return { ai_user_text: '<lead_fields>\nRole: ' + L.role + '\nCompany size: ' + L.size + '\nBudget: ' + L.budget + '\nTimeline: ' + L.timeline + '\n</lead_fields>\n<lead_message>\n' + L.message + '\n</lead_message>', note: 'No name, email or company is sent to the model' };
+    case 'AI score, attempt 1': return sc.badFirst ? { output: sc.badFirst.raw || { score: sc.badFirst.score, tier: sc.badFirst.tier, reason: sc.badFirst.reason, confidence: sc.badFirst.confidence } } : { output: { score: A.score, tier: A.tier, reason: A.reason, confidence: A.confidence } };
+    case 'Check AI answer 1': return sc.badFirst ? { passed: false, failed_rule: sc.badFirst.why } : { passed: true, rules_passed: 7 };
+    case 'AI score, attempt 2 (repair)': return sc.badSecond ? { output: { score: sc.badSecond.score, tier: sc.badSecond.tier, reason: sc.badSecond.reason, confidence: sc.badSecond.confidence } } : { output: { score: A.score, tier: A.tier, reason: A.reason, confidence: A.confidence } };
+    case 'Check AI answer 2': return sc.badSecond ? { passed: false, failed_rule: sc.badSecond.why } : { passed: true, rules_passed: 7 };
+    case 'Accept answer 1': return { ai_score: A.score, ai_tier: A.tier, ai_confidence: A.confidence, ai_calls_used: 1 };
+    case 'Accept answer 2': return { ai_score: A.score, ai_tier: A.tier, ai_confidence: A.confidence, ai_calls_used: 2 };
+    case 'Confident enough?': return { confidence: A ? A.confidence : null, threshold: 0.7, confident: A ? A.confidence >= 0.7 : false };
+    case 'Route by tier': return { ai_tier: A ? A.tier : '', goes_to: A ? A.tier + ' output' : 'fallback' };
+    case 'Mark: hot': return { decision_path: 'auto-hot', status: 'scored' };
+    case 'Mark: warm': return { decision_path: 'auto-warm', status: 'scored' };
+    case 'Mark: cold': return { decision_path: 'auto-cold', status: 'scored' };
+    case 'Mark: low confidence or odd tier': return { decision_path: 'review-low-confidence', status: 'review' };
+    case 'Mark: invalid AI answer': return { decision_path: 'review-invalid', status: 'review', ai_calls_used: 2 };
+    case 'Decision record': return { lead_id: id, status: rec.status, score: String(rec.score), tier: rec.tier, confidence: String(rec.confidence), slack_company: L.company.replace(/[@<>*_~`]/g, ''), why_flagged: sc.id === 'cap' ? 'Daily AI limit reached; saved without AI scoring' : sc.id === 'lowconf' ? 'Low confidence or unexpected tier' : sc.id === 'invalid' ? 'AI answer invalid or the AI call failed' : 'n/a' };
+    case 'Needs a review message first?': return { status_is_scored: sc.id !== 'lowconf' && sc.id !== 'invalid' && sc.id !== 'cap' };
+    case 'Slack: needs your review': return { ok: true, channel: '#lead-review', text: '*DEMO lead needs your review*  Lead ID: ' + id };
+    case 'Create or update contact': return sc.hsError ? { error: sc.hsError, retries: 3 } : { vid: 5103 + Number(execId), email: L.email, properties: { demo_record: 'DEMO' } };
+    case 'Slack: HubSpot save failed': return { ok: true, channel: '#lead-review', text: '*DEMO lead NOT saved in HubSpot*  Execution: ' + execId };
+    case 'Is it a hot lead?': return { decision_path: A && A.tier === 'hot' && !sc.badFirst ? 'auto-hot' : 'not hot', hot: !!(A && A.tier === 'hot') };
+    case 'Got a HubSpot contact ID?': return { has_contact_id: true };
+    case 'Create follow-up task': return { engagement: { id: 88021, type: 'TASK', subject: 'Call hot lead (DEMO)' } };
+    case 'Slack: hot lead alert': return { ok: true, channel: '#hot-leads', text: '*DEMO HOT lead*  Score ' + (A ? A.score : '') };
+    case 'Log decision': return { row: { lead_id: id, status: rec.status, decision_path: sc.id, ai_calls_used: sc.calls, slack_sent: sc.id === 'hsfail' ? 'yes' : 'yes/no per path', execution_id: execId } };
+    case 'Did any step fail along the way?': return { any_failed: sc.status === 'failed' };
+    case 'Alert owner: a step needs attention': return { error: 'Lead qualifier: contact NOT saved in HubSpot. Log row written. Open execution.' };
+    case 'All steps succeeded': return { done: true };
+    default: return { ok: true };
+  }
+}
+
+/* ---------- runs ---------- */
+function buildRun(sc, id, source) {
+  var steps = [], total = 0;
+  sc.path.forEach(function (nm, i) {
+    var nx = sc.path[i + 1], es = nx ? (edgeOf[nm + '>' + nx] || []) : [], e = es.length ? es[0] : null, n = byName[nm];
+    var failed = (e && e.kind === 'error') || n.type === 'stop';
+    var nom = NOMINAL[n.cat] || 5;
+    if (nm === 'Create or update contact' && sc.hsError) nom = 1400;
+    steps.push({ node: nm, edge: e ? e.id : null, status: failed ? 'error' : 'success', nominal: nom, data: sampleFor(nm, sc, id), branch: e && e.label ? e.label : '' });
+    total += nom;
+  });
+  var run = { id: id, sc: sc.id, title: sc.title, status: sc.status, source: source || 'sample', steps: steps, nominalTotal: total, calls: sc.calls };
+  layout(run); return run;
+}
+function layout(run) {
+  var t = 0; run.tl = [];
+  run.steps.forEach(function (st, i) {
+    var vis = 420 + Math.min(st.nominal, 2000) / 2000 * 1000, trav = i < run.steps.length - 1 ? 520 : 0;
+    run.tl.push({ ns: t, ne: t + vis, tr: trav }); t += vis + trav;
+  });
+  run.T = t + 400;
+}
+function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : Math.round(ms) + 'ms'; }
+
+/* sample history: deterministic shuffle of the illustrative mix */
+(function seedHistory() {
+  var list = []; Object.keys(D.mix).forEach(function (k) { for (var i = 0; i < D.mix[k]; i++) list.push(k); });
+  var seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+  for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)); var tmp = list[i]; list[i] = list[j]; list[j] = tmp; }
+  list.forEach(function (k, i) {
+    var sc = scenById[k], total = 0; sc.path.forEach(function (nm) { var n = byName[nm]; total += (nm === 'Create or update contact' && sc.hsError) ? 1400 : (NOMINAL[n.cat] || 5); });
+    S.history.push({ id: 125 - i, sc: k, title: sc.title, status: sc.status, nominalTotal: total, source: 'sample', ago: (i * 7 + 2) + ' min ago', calls: sc.calls });
+    S.tally[sc.outcome] = (S.tally[sc.outcome] || 0) + 1; S.aiCalls += sc.calls;
+  });
+})();
+
+/* ---------- rendering of a moment in time ---------- */
+function stateAt(run, t) {
+  var idx = 0;
+  for (var i = 0; i < run.tl.length; i++) if (run.tl[i].ns <= t) idx = i;
+  var tl = run.tl[idx], last = idx === run.steps.length - 1;
+  if (t < tl.ne) return { idx: idx, mode: 'run', p: (t - tl.ns) / (tl.ne - tl.ns) };
+  if (!last && t < tl.ne + tl.tr) return { idx: idx, mode: 'travel', p: (t - tl.ne) / tl.tr };
+  return { idx: idx, mode: last ? 'end' : 'travel', p: 1 };
+}
+var capStep = document.getElementById('capstep'), capLine = document.getElementById('capline');
+
+function renderAt(t, force) {
+  var run = S.run; if (!run) return;
+  var st = stateAt(run, t), idx = st.idx, onPath = {}, edgeState = {};
+  run.steps.forEach(function (s, i) { onPath[s.node] = i; });
+  for (var i = 0; i < run.steps.length; i++) {
+    var s = run.steps[i]; if (!s.edge) continue;
+    if (i < idx || (i === idx && (st.mode === 'end' || (st.mode === 'travel' && st.p >= 1)))) edgeState[s.edge] = s.status === 'error' ? 'err' : 'done';
+    else if (i === idx && st.mode === 'travel') edgeState[s.edge] = 'live';
+  }
+  D.nodes.forEach(function (n) {
+    var ne = nodeEls[n.id], pos = onPath[n.id], cls = 'node', badge = 'none', sym = '';
+    if (pos === undefined) {
+      // chat models and parsers belong to the chain that ran
+      var par = n.sub ? n.parent : null;
+      if (par && onPath[par] !== undefined && onPath[par] <= idx) { cls += ' success'; badge = 'b-success'; sym = '✓'; }
+      else cls += S.only ? ' hide' : ' dim';
+    } else if (pos > idx) cls += S.only ? ' hide' : ' dim';
+    else if (pos === idx && st.mode === 'run') { cls += ' running'; badge = 'b-running'; sym = '…'; }
+    else { var ss = run.steps[pos].status; cls += ' ' + ss; badge = ss === 'error' ? 'b-error' : 'b-success'; sym = ss === 'error' ? '!' : '✓'; }
+    if (S.sel === n.id) cls += ' sel';
+    var key = cls + '|' + badge + sym;
+    if (ne.key !== key || force) { ne.key = key; ne.g.setAttribute('class', cls); ne.badge.setAttribute('class', 'badge ' + badge); ne.bt.textContent = sym; }
+  });
+  D.edges.forEach(function (e) {
+    var o = edgeEls[e.id], c = 'edge' + (e.sub ? ' sub' : '') + (edgeState[e.id] ? ' ' + edgeState[e.id] : '');
+    if (e.sub) { var childRan = onPath[e.to] !== undefined && onPath[e.to] <= idx; if (childRan) c += ' done'; }
+    if (o.path.getAttribute('class') !== c) o.path.setAttribute('class', c);
+  });
+  // token
+  var cur = run.steps[idx];
+  if (st.mode === 'travel' && cur.edge) {
+    var p = edgeEls[cur.edge].path, L = p.getTotalLength(), pt = p.getPointAtLength(L * (st.p < 0.5 ? 2 * st.p * st.p : 1 - Math.pow(-2 * st.p + 2, 2) / 2));
+    token.setAttribute('cx', pt.x); token.setAttribute('cy', pt.y); token.setAttribute('opacity', 1);
+  } else if (st.mode === 'run') {
+    var nn = byName[cur.node]; token.setAttribute('cx', nn.x + W / 2); token.setAttribute('cy', nn.y - 10); token.setAttribute('opacity', 0.9);
+  } else token.setAttribute('opacity', 0);
+  // phase
+  var ph = phaseOf[cur.node];
+  if (ph && ph.id !== S.lastPhase) { S.lastPhase = ph.id; highlightPhase(ph.id); renderSop(); }
+  if (idx !== S.lastIdx || force) { S.lastIdx = idx; renderCaption(idx, st); if (S.tab === 'now') renderNow(); if (S.follow && S.playing) centerOn(cur.node, 0.95); renderGantt(); }
+  document.getElementById('scrub').value = Math.round(t / run.T * 1000);
+  document.getElementById('timecode').textContent = (t / 1000).toFixed(1) + 's / ' + (run.T / 1000).toFixed(1) + 's';
+  document.getElementById('play').textContent = S.playing ? 'Pause' : (t >= run.T - 1 ? 'Replay' : 'Play');
+}
+function highlightPhase(id) {
+  D.phases.forEach(function (p) { var on = p.id === id; boxEls[p.id].r.classList.toggle('on', on); boxEls[p.id].t.classList.toggle('on', on); });
+  Array.prototype.forEach.call(document.querySelectorAll('.pchip'), function (c) { c.setAttribute('aria-current', c.dataset.p === id ? 'true' : 'false'); });
+}
+function renderCaption(idx, st) {
+  var run = S.run, s = run.steps[idx], n = byName[s.node], ph = phaseOf[s.node];
+  capStep.textContent = 'Step ' + (idx + 1) + ' of ' + run.steps.length + (ph ? ' · ' + ph.name : '') + ' · ' + run.title;
+  var out = s.branch ? ' Takes the ' + s.branch + ' output.' : '';
+  if (s.status === 'error' && s.edge) out = ' This node failed, so the error output opens a side road.';
+  if (n.type === 'stop') out = '';
+  capLine.innerHTML = '<b></b> <span></span>';
+  capLine.firstChild.textContent = /[?.!]$/.test(s.node) ? s.node : s.node + '.'; capLine.lastChild.textContent = (D.info[s.node] || '') + out;
+}
+
+/* ---------- panels ---------- */
+function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+function jsonHtml(o) {
+  return esc(JSON.stringify(o, null, 2)).replace(/(&quot;|")([^"\n]+?)(&quot;|")(\s*:)/g, '<span class="jk">"$2"</span>$4').replace(/: "([^"\n]*)"/g, ': <span class="js">"$1"</span>').replace(/: (-?\d+\.?\d*|true|false|null)/g, ': <span class="jn">$1</span>');
+}
+function renderNow() {
+  var box = document.getElementById('tab-now'), run = S.run, idx = Math.max(0, S.lastIdx), name = S.sel || run.steps[idx].node;
+  var n = byName[name], pos = -1; run.steps.forEach(function (s, i) { if (s.node === name) pos = i; });
+  var step = pos >= 0 ? run.steps[pos] : null, ph = phaseOf[name], status = step ? (pos > idx ? 'idle' : step.status) : 'idle';
+  if (pos === idx && stateAt(run, S.t).mode === 'run') status = 'running';
+  var h = '<div><div class="chips" style="margin-bottom:8px">' + (ph ? '<span class="chip"><i style="width:9px;height:9px;border-radius:50%;background:var(--p' + ph.color + ')"></i>' + esc(ph.name) + '</span>' : '') +
+    '<span class="chip">' + esc(n.kindLabel) + '</span><span class="status ' + status + '">' + (step ? status : 'not on this path') + '</span></div>' +
+    '<h2 style="font-size:20px">' + esc(name) + '</h2><p style="margin:6px 0 0">' + esc(D.info[name] || '') + '</p></div>';
+  if (S.sel) h += '<button class="btn ghost" id="backlive" type="button">Back to the live step</button>';
+  if (step && pos <= idx) {
+    h += '<div><h3 style="font-size:13px;margin-bottom:6px">What this node produced <span class="muted small">(synthetic sample item)</span></h3><pre class="json">' + jsonHtml(step.data) + '</pre></div>';
+    h += '<div class="small muted">Illustrative time: ' + fmtMs(step.nominal) + (step.branch ? ' · took the ' + esc(step.branch) + ' output' : '') + '</div>';
+  } else if (step) h += '<p class="muted small">This node has not run yet in this playback.</p>';
+  else h += '<p class="muted small">This node is not used by the selected scenario. Pick another scenario to see it run.</p>';
+  if (ph) h += '<div class="card"><h3>' + esc(ph.name) + ': the n8n idea</h3><div class="small muted" style="margin-bottom:4px">' + esc(ph.concept) + '</div><div class="say">' + esc(ph.say) + '</div></div>';
+  box.innerHTML = h;
+  var b = document.getElementById('backlive'); if (b) b.onclick = function () { S.sel = null; renderAt(S.t, true); };
+}
+function renderSop() {
+  var sc = scenById[S.scen] || scenById[S.run && S.run.sc], box = document.getElementById('tab-sop'); if (!sc) return;
+  var curPh = S.lastPhase, h = '<div><div class="chips" style="margin-bottom:8px"><span class="chip">' + esc(sc.freq) + '</span><span class="status ' + sc.status + '">' + (sc.status === 'failed' ? 'ends Failed' : 'ends Success') + '</span></div><h2 style="font-size:20px">' + esc(sc.title) + '</h2><p style="margin:6px 0 0">' + esc(sc.blurb) + '</p></div>';
+  h += '<div class="small muted">Concepts shown: ' + sc.concepts.map(esc).join(' · ') + '</div>';
+  var seen = {};
+  sc.path.forEach(function (nm) { var p = phaseOf[nm]; if (p) seen[p.id] = true; });
+  h += '<div>';
+  D.phases.forEach(function (p) {
+    if (!seen[p.id]) return;
+    var beat = sc.beats[p.id] || p.what;
+    h += '<div class="beat' + (curPh === p.id ? ' now' : '') + '"><span class="dot" style="background:var(--p' + p.color + ')"></span><div><h4>' + esc(p.name) + ' <span class="muted" style="font-weight:400">· ' + esc(p.sub) + '</span></h4><p>' + esc(beat) + '</p>' + (curPh === p.id ? '<div class="say">' + esc(p.say) + '</div>' : '') + '</div></div>';
+  });
+  h += '</div><div class="card"><h3>Evidence to open in n8n</h3><p class="small" style="margin:0">' + esc(sc.evidence) + '</p></div>';
+  h += '<details><summary>All eight phases</summary>' + D.phases.map(function (p) { return '<div class="beat now"><span class="dot" style="background:var(--p' + p.color + ')"></span><div><h4>' + esc(p.name) + ' <span class="muted" style="font-weight:400">· ' + esc(p.concept) + '</span></h4><p>' + esc(p.what) + '</p></div></div>'; }).join('') + '</details>';
+  box.innerHTML = h;
+}
+var OUTCOME_COLORS = { 'Hot lead': 'var(--p6)', 'Warm / cold': 'var(--p1)', 'Rejected': 'var(--skip)', 'Duplicate': 'var(--p3)', 'Needs review': 'var(--warn)', 'Cap reached': 'var(--p4)', 'Failed run': 'var(--bad)' };
+function renderRuns() {
+  var box = document.getElementById('tab-runs'), cap = 25, calls = S.aiCalls, pct = Math.min(1, calls / cap);
+  var cats = D.categories, max = Math.max.apply(null, cats.map(function (c) { return S.tally[c] || 0; }).concat([1]));
+  var bars = '<svg viewBox="0 0 360 ' + (cats.length * 26 + 8) + '" role="img" aria-label="Runs by outcome">';
+  cats.forEach(function (c, i) { var v = S.tally[c] || 0, w = v / max * 190, y = i * 26 + 4;
+    bars += '<text class="ctext" x="0" y="' + (y + 14) + '">' + esc(c) + '</text><rect x="104" y="' + y + '" width="' + Math.max(2, w) + '" height="18" rx="4" style="fill:' + OUTCOME_COLORS[c] + '"/><text class="cval" x="' + (110 + w) + '" y="' + (y + 14) + '">' + v + '</text>'; });
+  bars += '</svg>';
+  var gcol = pct >= 1 ? 'var(--bad)' : pct >= 0.8 ? 'var(--warn)' : 'var(--run)';
+  var gauge = '<svg viewBox="0 0 360 54" role="img" aria-label="AI calls today ' + calls + ' of ' + cap + '"><rect x="0" y="8" width="360" height="16" rx="8" style="fill:var(--surface-2)"/><rect x="0" y="8" width="' + (360 * pct) + '" height="16" rx="8" style="fill:' + gcol + '"/>';
+  for (var k = 0; k <= 25; k += 5) gauge += '<text class="ctext" text-anchor="middle" x="' + Math.min(350, Math.max(10, 360 * k / 25)) + '" y="46">' + k + '</text>';
+  gauge += '</svg>';
+  var rows = (S.history.slice(0, 14)).map(function (r) { return '<tr data-run="' + r.id + '" class="' + (S.run && S.run.id === r.id ? 'sel' : '') + '"><td>#' + r.id + '</td><td>' + esc(r.title) + '</td><td><span class="status ' + (r.status === 'failed' ? 'failed' : 'success') + '">' + (r.status === 'failed' ? 'error' : 'ok') + '</span></td><td>' + fmtMs(r.nominalTotal) + '</td><td class="muted">' + esc(r.ago) + '</td></tr>'; }).join('');
+  box.innerHTML = '<div class="charts"><div><h3 style="font-size:14px;margin-bottom:6px">Runs by outcome</h3>' + bars + '<p class="small muted" style="margin:4px 0 0">Pre-loaded sample runs (synthetic, illustrative mix) plus every run you play.</p></div>' +
+    '<div><h3 style="font-size:14px;margin-bottom:2px">AI calls today: ' + calls + ' of ' + cap + '</h3>' + gauge + '</div>' +
+    '<div><h3 style="font-size:14px;margin-bottom:6px">Where the time goes in the selected run</h3><div id="gantt"></div><p class="small muted" style="margin:4px 0 0">Illustrative timings by node type. The AI call dominates, which is why it sits behind the cap.</p></div>' +
+    '<div><h3 style="font-size:14px;margin-bottom:6px">Executions</h3><div class="tw"><table class="runs"><thead><tr><th>Run</th><th>Scenario</th><th>Status</th><th>Time</th><th>When</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
+  Array.prototype.forEach.call(box.querySelectorAll('tr[data-run]'), function (tr) { tr.onclick = function () { loadHistory(Number(tr.dataset.run)); }; });
+  renderGantt(); renderKpis();
+}
+function renderGantt() {
+  var g = document.getElementById('gantt'); if (!g || !S.run) return;
+  var run = S.run, steps = run.steps, max = Math.max.apply(null, steps.map(function (s) { return s.nominal; })), rh = 17, lw = 150, cw = 190;
+  var out = '<svg viewBox="0 0 360 ' + (steps.length * rh + 6) + '" role="img" aria-label="Time per step">', acc = 0, total = run.nominalTotal || 1;
+  steps.forEach(function (s, i) {
+    var x = lw + acc / total * cw, w = Math.max(2, s.nominal / total * cw), y = i * rh + 2, now = i === S.lastIdx;
+    out += '<text class="ctext" x="0" y="' + (y + 11) + '" ' + (now ? 'style="fill:var(--fg);font-weight:600"' : '') + '>' + esc(s.node.length > 24 ? s.node.slice(0, 23) + '…' : s.node) + '</text><rect x="' + x + '" y="' + y + '" width="' + w + '" height="12" rx="3" style="fill:' + (s.status === 'error' ? 'var(--bad)' : CAT[byName[s.node].cat]) + '" opacity="' + (now ? 1 : 0.75) + '"/>' + (s.nominal >= total * 0.08 ? '<text class="cval" x="' + (Math.min(x + w + 4, 300)) + '" y="' + (y + 11) + '">' + fmtMs(s.nominal) + '</text>' : '');
+    acc += s.nominal;
+  });
+  g.innerHTML = out + '</svg>';
+}
+function renderKpis() {
+  var total = S.history.length, failed = S.history.filter(function (r) { return r.status === 'failed'; }).length;
+  document.getElementById('kpis').innerHTML = '<div class="kpi"><b>' + total + '</b><span>Executions</span></div>' +
+    '<div class="kpi' + (failed ? ' bad' : '') + '"><b>' + failed + '</b><span>Failed</span></div>' +
+    '<div class="kpi' + (S.aiCalls >= 25 ? ' bad' : S.aiCalls >= 20 ? ' warn' : '') + '"><b>' + S.aiCalls + ' / 25</b><span>AI calls today</span></div>';
+}
+
+/* ---------- for clients ---------- */
+var KIT = [
+  ['rule0', 'Written permission from the client before any real client work goes public'],
+  ['case', 'Case study page (short and long version)'],
+  ['flow', 'Flow Stage link on your own subdomain'],
+  ['hero', 'Hero image'],
+  ['proof', 'Three proof screenshots (alert, CRM record, log table), synthetic data only'],
+  ['ba', 'Before and after graphic with measured numbers and how they were measured'],
+  ['rec', 'Two-minute screen recording with captions'],
+  ['pdf', 'One-page PDF'],
+  ['quote', 'Testimonial from a real client (leave empty until you have one)'],
+  ['label', '"Demo project, synthetic data" label visible on everything']
+];
+function kitLoad() { try { return JSON.parse(localStorage.getItem('flowstage-kit') || '{}'); } catch (e) { return {}; } }
+function kitSave(o) { try { localStorage.setItem('flowstage-kit', JSON.stringify(o)); } catch (e) { /* storage can be blocked */ } }
+function renderClients() {
+  var box = document.getElementById('tab-clients'), done = kitLoad();
+  var n = KIT.filter(function (k) { return done[k[0]]; }).length;
+  box.innerHTML =
+    '<div><h2 style="font-size:20px">Showing this to a client</h2><p style="margin:6px 0 0" class="muted">What goes alongside this page when you pitch. Everything here is a demo on synthetic data.</p></div>' +
+    '<div class="card"><h3>The short pitch</h3><p class="small" style="margin:0">Small teams sort web-form leads by hand, so hot leads wait and duplicates slip in. This automation cleans each lead, blocks repeats, scores it against a fixed rubric with an AI, and routes it. Hot leads get a CRM record, a follow-up task and a Slack alert. Anything the AI is unsure about goes to a person. Every lead gets one log row that says why it was ranked that way. The AI has a daily cap, one repair try and a human fallback. It is delivered inactive until you sign off.</p></div>' +
+    '<div class="card"><h3>Before and after</h3><div class="tw"><table class="runs"><thead><tr><th></th><th>Before</th><th>After</th></tr></thead><tbody>' +
+    '<tr><td>Who touches a lead</td><td>A person, every time</td><td>A person only for hot or unsure leads</td></tr>' +
+    '<tr><td>Duplicates</td><td>Found by luck</td><td>Blocked for 24 hours</td></tr>' +
+    '<tr><td>Why a lead was ranked</td><td>In someone\'s head</td><td>One log row per lead</td></tr>' +
+    '<tr><td>AI cost</td><td>n/a</td><td>Daily cap, one repair try, then a human</td></tr>' +
+    '<tr><td>Time form to CRM <span class="muted">(estimate)</span></td><td>About 5 minutes</td><td>About 5 to 10 seconds</td></tr>' +
+    '<tr><td>AI cost per scored lead <span class="muted">(estimate)</span></td><td>n/a</td><td>About 500 tokens in and 60 out, times your model\'s price</td></tr>' +
+    '</tbody></table></div><p class="small muted" style="margin:6px 0 0"><b>How these were worked out.</b> By hand: 1 minute to read, 1 to judge, 2 to enter in the CRM, 1 to message a colleague. Automated: AI about 2 to 4 s, CRM about 0.5 s, Slack about 0.5 s, the rest under 1 s. These are estimates, not measurements. Replace them with your own timed run and the real run times from n8n, and keep the word "estimate" until you do.</p>' +
+    '<p class="small" style="margin:8px 0 0"><b>Measured so far</b> (real runs on the showcase n8n, synthetic data): an unusable lead finished in 0.26 s and a repeat submission in 0.18 s. Both stop early, so they show the front half works, not the form-to-CRM time.</p></div>' +
+    '<div class="card"><h3>Asset kit <span class="muted small" id="kitn">' + n + ' of ' + KIT.length + '</span></h3><div id="kit" style="display:flex;flex-direction:column;gap:2px">' +
+    KIT.map(function (k) { return '<label style="display:flex;gap:10px;align-items:flex-start;padding:5px 0;min-height:32px"><input type="checkbox" data-k="' + k[0] + '"' + (done[k[0]] ? ' checked' : '') + ' style="margin-top:3px"><span class="small">' + esc(k[1]) + '</span></label>'; }).join('') +
+    '</div><p class="small muted" style="margin:6px 0 0">Ticks are remembered in this browser only.</p></div>' +
+    '<div class="card"><h3>Where each piece goes</h3><ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">' +
+    '<li><b>Upwork:</b> portfolio item with the hero, proof and this link; a fixed-scope offer; a proposal that opens with their problem.</li>' +
+    '<li><b>Fiverr:</b> hero first, before and after second, recording as the gig video, three clear tiers.</li>' +
+    '<li><b>LinkedIn:</b> the story with the recording, the cost-guard post, the failure-path post.</li>' +
+    '<li><b>Website:</b> a Work page with the case study and this page.</li></ul>' +
+    '<p class="small muted" style="margin:6px 0 0">Check each platform\'s current upload limits before you export.</p></div>';
+  Array.prototype.forEach.call(box.querySelectorAll('#kit input'), function (c) {
+    c.onchange = function () { var d = kitLoad(); d[c.dataset.k] = c.checked; kitSave(d); document.getElementById('kitn').textContent = KIT.filter(function (k) { return d[k[0]]; }).length + ' of ' + KIT.length; };
+  });
+}
+
+/* ---------- controls ---------- */
+function startRun(sc, source) {
+  var id = S.nextId++; var run = buildRun(sc, id, source || 'live'); S.run = run; S.scen = sc.id; S.sel = null; S.lastIdx = -2; S.lastPhase = null; S.t = 0; S.counted[id] = false;
+  markScen(); renderAt(0, true); renderSop(); renderNow(); renderRuns();
+  if (S.follow) centerOn(run.steps[0].node, 0.95);
+}
+function loadRun(sc, id) { // pre-existing run shown finished
+  var run = buildRun(sc, id, 'sample'); S.run = run; S.scen = sc.id; S.sel = null; S.lastIdx = -2; S.lastPhase = null; S.t = run.T; S.counted[id] = true; markScen();
+}
+function loadHistory(id) { var r = S.history.filter(function (h) { return h.id === id; })[0]; if (!r || !scenById[r.sc]) return; S.playing = false; loadRun(scenById[r.sc], id); renderAt(S.t, true); renderSop(); renderNow(); renderRuns(); }
+function markScen() { Array.prototype.forEach.call(document.querySelectorAll('.scn'), function (b) { b.setAttribute('aria-pressed', b.dataset.s === S.scen ? 'true' : 'false'); }); }
+function finishRun() {
+  var run = S.run; if (!run || S.counted[run.id] || run.source === 'sample') return; S.counted[run.id] = true;
+  var sc = scenById[run.sc]; S.history.unshift({ id: run.id, sc: run.sc, title: run.title, status: run.status, nominalTotal: run.nominalTotal, source: 'live', ago: 'just now', calls: run.calls });
+  S.tally[sc.outcome] = (S.tally[sc.outcome] || 0) + 1; S.aiCalls = Math.min(25, S.aiCalls + run.calls); renderRuns();
+}
+var last = 0;
+function frame(ts) {
+  var dt = last ? Math.min(80, ts - last) : 16; last = ts;
+  if (S.playing && S.run) {
+    S.t += dt * S.speed;
+    if (S.t >= S.run.T) { S.t = S.run.T; S.playing = false; finishRun(); renderAt(S.t); if (S.queue.length) { var nx = S.queue.shift(); setTimeout(function () { startRun(scenById[nx]); S.playing = true; }, 500); } }
+    else renderAt(S.t);
+  }
+  if (S.target) {
+    var v = S.view, tg = S.target, a = 0.14;
+    v.x += (tg.x - v.x) * a; v.y += (tg.y - v.y) * a; v.k += (tg.k - v.k) * a;
+    if (Math.abs(tg.x - v.x) < 0.5 && Math.abs(tg.y - v.y) < 0.5 && Math.abs(tg.k - v.k) < 0.002) { S.view = { x: tg.x, y: tg.y, k: tg.k }; S.target = null; }
+    applyView();
+  }
+  requestAnimationFrame(frame);
+}
+function playToggle() {
+  if (!S.run) return;
+  if (S.playing) { S.playing = false; renderAt(S.t); return; }
+  if (S.t >= S.run.T - 1) { startRun(scenById[S.scen]); }
+  S.playing = true;
+}
+document.getElementById('play').onclick = playToggle;
+function stepTo(dir) {
+  var run = S.run; if (!run) return; S.playing = false;
+  var st = stateAt(run, S.t), i = st.idx + dir; if (dir < 0 && st.mode === 'run' && S.t - run.tl[st.idx].ns > 60) i = st.idx;
+  i = Math.max(0, Math.min(run.steps.length - 1, i)); S.t = run.tl[i].ne - 1; renderAt(S.t, true); if (S.follow) centerOn(run.steps[i].node, 0.95);
+}
+document.getElementById('prev').onclick = function () { stepTo(-1); };
+document.getElementById('next').onclick = function () { stepTo(1); };
+document.getElementById('speed').onchange = function (e) { S.speed = Number(e.target.value); };
+document.getElementById('follow').onchange = function (e) { S.follow = e.target.checked; };
+document.getElementById('onlypath').onchange = function (e) { S.only = e.target.checked; renderAt(S.t, true); };
+document.getElementById('scrub').oninput = function (e) { if (!S.run) return; S.playing = false; S.t = Number(e.target.value) / 1000 * S.run.T; renderAt(S.t, true); };
+document.getElementById('runall').onclick = function () { S.queue = D.scenarios.map(function (s) { return s.id; }); var first = S.queue.shift(); startRun(scenById[first]); S.playing = true; };
+document.getElementById('themebtn').onclick = function () {
+  var r = document.documentElement, cur = r.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+};
+function selectNode(name) { S.sel = name; setTab('now'); renderAt(S.t, true); if (!S.playing) centerOn(name, Math.max(S.view.k, 0.9)); }
+function setTab(t) {
+  S.tab = t;
+  Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) { b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'); });
+  ['now', 'sop', 'runs', 'replay', 'clients'].forEach(function (k) { document.getElementById('tab-' + k).hidden = k !== t; });
+  if (t === 'now') renderNow(); if (t === 'sop') renderSop(); if (t === 'runs') renderRuns(); if (t === 'clients') renderClients();
+}
+Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) { b.onclick = function () { setTab(b.dataset.tab); }; });
+
+/* scenario picker, legend, phase chips */
+var sbox = document.getElementById('scenarios');
+D.scenarios.forEach(function (sc) {
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'scn'; b.dataset.s = sc.id; b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = '<small>' + esc(sc.freq) + '</small><b>' + esc(sc.short) + '</b>';
+  b.onclick = function () { S.playing = false; S.queue = []; startRun(sc); S.playing = true; };
+  sbox.appendChild(b);
+});
+document.getElementById('legend').innerHTML = LEGEND.map(function (l) { return '<span><i style="background:' + CAT[l[0]] + '"></i>' + l[1] + '</span>'; }).join('');
+var pbar = document.getElementById('phasebar');
+D.phases.forEach(function (p) {
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'pchip'; b.dataset.p = p.id; b.setAttribute('aria-current', 'false');
+  b.innerHTML = '<i style="background:var(--p' + p.color + ')"></i>' + esc(p.name);
+  b.onclick = function () { S.atStart = false; S.follow = false; document.getElementById('follow').checked = false; setView(fitBox(p.box, 24, 1.1), true); highlightPhase(p.id); };
+  pbar.appendChild(b);
+});
+
+/* ---------- replay a real execution ---------- */
+function findRunData(o) { if (!o || typeof o !== 'object') return null; if (o.runData) return o.runData; if (o.resultData && o.resultData.runData) return o.resultData.runData; if (o.data) { if (typeof o.data === 'string') return 'compact'; return findRunData(o.data); } return null; }
+function replay(text) {
+  var msg = document.getElementById('pastemsg'), obj;
+  try { obj = JSON.parse(text); } catch (e) { msg.textContent = 'That is not valid JSON. Copy the whole execution again.'; return; }
+  var rd = findRunData(obj);
+  if (rd === 'compact') { msg.textContent = 'This export is in n8n\'s compact format, which this page cannot read yet. Use the execution\'s data from the Executions view with runData visible.'; return; }
+  if (!rd) { msg.textContent = 'No runData found. The JSON needs data.resultData.runData.'; return; }
+  var rows = [], unknown = 0;
+  Object.keys(rd).forEach(function (nm) { var r = rd[nm] && rd[nm][0]; if (!r) return; if (!byName[nm]) { unknown++; return; } rows.push({ nm: nm, start: r.startTime || 0, ms: r.executionTime || 5, err: !!r.error, data: r.data && r.data.main && r.data.main[0] && r.data.main[0][0] ? r.data.main[0][0].json : { items: 'n/a' } }); });
+  if (!rows.length) { msg.textContent = 'None of the node names match this workflow, so nothing can be drawn.'; return; }
+  rows.sort(function (a, b) { return a.start - b.start; });
+  var steps = rows.map(function (r, i) { var nx = rows[i + 1], es = nx ? (edgeOf[r.nm + '>' + nx.nm] || []) : [], e = es[0] || null; return { node: r.nm, edge: e ? e.id : null, status: r.err ? 'error' : 'success', nominal: r.ms, data: r.data, branch: e && e.label ? e.label : '' }; });
+  var id = S.nextId++, run = { id: id, sc: S.scen, title: 'Replay of a real execution', status: steps.some(function (s) { return s.status === 'error'; }) ? 'failed' : 'success', source: 'import', steps: steps, nominalTotal: steps.reduce(function (a, s) { return a + s.nominal; }, 0), calls: 0 };
+  layout(run); S.run = run; S.sel = null; S.lastIdx = -2; S.lastPhase = null; S.t = 0; S.counted[id] = true; S.playing = true; setTab('now'); renderAt(0, true);
+  msg.textContent = 'Replaying ' + steps.length + ' nodes' + (unknown ? ' (' + unknown + ' not in this workflow were skipped)' : '') + '. Gaps between nodes are drawn only where a connection exists.';
+}
+document.getElementById('dopaste').onclick = function () { replay(document.getElementById('paste').value); };
+document.getElementById('sample-paste').onclick = function () {
+  var t0 = 1760780000000;
+  document.getElementById('paste').value = JSON.stringify({ data: { resultData: { runData: {
+    'Receive lead': [{ startTime: t0, executionTime: 1, data: { main: [[{ json: { body: { email: 'not-an-email', consent: false } } }]] } }],
+    'Settings': [{ startTime: t0 + 8, executionTime: 5, data: { main: [[{ json: { hot_min: 70 } }]] } }],
+    'Clean the lead': [{ startTime: t0 + 15, executionTime: 164, data: { main: [[{ json: { email: 'not-an-email', consent: false } }]] } }],
+    'Is the lead usable?': [{ startTime: t0 + 180, executionTime: 10, data: { main: [[], [{ json: { email: 'not-an-email' } }]] } }],
+    'Log rejected lead': [{ startTime: t0 + 190, executionTime: 46, data: { main: [[{ json: { status: 'rejected', reject_reason: 'invalid_email' } }], []] } }]
+  } } } }, null, 2);
+};
+
+/* ---------- start ---------- */
+renderKpis();
+loadRun(scenById.hot, 126); S.nextId = 127;
+S.history.unshift({ id: 126, sc: 'hot', title: scenById.hot.title, status: 'success', nominalTotal: S.run.nominalTotal, source: 'sample', ago: 'just now', calls: 1 });
+S.tally[scenById.hot.outcome] = (S.tally[scenById.hot.outcome] || 0) + 1; S.aiCalls += 1; S.history[0].sample = true;
+renderKpis();
+function initialFit() {
+  var a = D.phases[0].box, b = D.phases[1].box, narrow = sizeOf().w < 900;
+  var box = narrow ? a : { x: a.x, y: Math.min(a.y, b.y), w: b.x + b.w - a.x, h: Math.max(a.y + a.h, b.y + b.h) - Math.min(a.y, b.y) };
+  setView(fitBox(box, 20, 1), false);
+}
+S.t = 0; S.atStart = true;
+initialFit();
+/* keep the opening view framed when the window, device orientation or full screen changes, until the viewer moves the canvas */
+(function () {
+  var timer = null;
+  function refit() { clearTimeout(timer); timer = setTimeout(function () { if (S.atStart && !S.playing) initialFit(); }, 120); }
+  if (window.ResizeObserver) new ResizeObserver(refit).observe(stageWrap); else window.addEventListener('resize', refit);
+  var fs = document.getElementById('zfs'), box = document.getElementById('stagebox');
+  if (document.fullscreenEnabled && box.requestFullscreen) {
+    fs.hidden = false;
+    fs.onclick = function () {
+      try { if (document.fullscreenElement) { document.exitFullscreen(); } else { var r = box.requestFullscreen(); if (r && r.catch) r.catch(function () { fs.hidden = true; }); } } catch (e) { fs.hidden = true; }
+    };
+  }
+})();
+renderAt(S.t, true); renderSop(); renderNow(); renderRuns();
+requestAnimationFrame(frame);
+})();
+</script>
