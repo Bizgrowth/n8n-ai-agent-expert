@@ -310,7 +310,7 @@
           "conditions": [
             {
               "id": "c1",
-              "leftValue": "={{ $input.all().some((i) => ['running', 'sending', 'sent'].includes(String(i.json.status ?? '').trim())) }}",
+              "leftValue": "={{ $input.all().some((i) => { const s = String(i.json.status ?? '').trim(); if (s === 'sending' || s === 'sent') { return true; } if (s !== 'running') { return false; } const at = DateTime.fromISO(String(i.json.started_at ?? '')); return !at.isValid || $now.diff(at, 'minutes').minutes < 30; }) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -324,7 +324,7 @@
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "TRUE = already done: go to \"Log duplicate run\". FALSE = new run. Blocked and duplicate rows do not count, so a fixed run can be repeated. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "TRUE = already done: go to \"Log duplicate run\". FALSE = new run. Blocked and duplicate rows do not count, so a fixed run can be repeated. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass M1: 'sending' and 'sent' always block a repeat. 'running' blocks only if started_at is under 30 minutes old (W1 has a 5 minute timeout, so an older running row is a dead run and the week may be claimed again). An unreadable started_at counts as blocking (safe). The re-claim updates the same run_key row, so 'Exactly one claim' still holds."
     },
     {
       "id": "1d84489e-15bd-46a2-a7c1-a7ca9c4dbdc7",
@@ -351,7 +351,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "run_key": "={{ $('Work out report week').first().json.week_start }}",
+            "run_key": "={{ $('Work out report week').first().json.week_start + '|dup|' + String($execution.id) }}",
             "status": "duplicate_run",
             "execution_id": "={{ String($execution.id) }}",
             "started_at": "={{ $now.toISO() }}"
@@ -374,7 +374,7 @@
       "maxTries": 3,
       "waitBetweenTries": 3000,
       "onError": "stopWorkflow",
-      "notes": "Plain append of a duplicate_run row, then the run ends. Nothing is sent. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+      "notes": "Plain append of a duplicate_run row, then the run ends. Nothing is sent. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning. Fix pass L2: the duplicate row gets its own key (week_start|dup|execution id), so it never shares run_key with the claim row and no Update Row or lookup on run_key = week_start can touch it."
     },
     {
       "id": "41b222cd-5d9d-4311-a467-0162dd219968",
@@ -893,7 +893,7 @@
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        4680,
+        4940,
         300
       ],
       "parameters": {
@@ -2967,6 +2967,57 @@
       "waitBetweenTries": 3000,
       "onError": "stopWorkflow",
       "notes": "Final audit row. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on run_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "7d6d1bc0-235f-4a8c-b27c-7d03291b7e7f",
+      "name": "Mark run failed (no source rows)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4680,
+        300
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_report_runs }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_key": "={{ $('Work out report week').first().json.week_start }}",
+            "status": "failed",
+            "execution_id": "={{ String($execution.id) }}"
+          },
+          "matchingColumns": [
+            "run_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "notes": "Fix pass M1. Our own claim row is set to 'failed' so the week can be run again after the owner fixes the source tabs ('failed' does not block a repeat). If this write fails, the stop below still fires (continue on error). Not used for 'Duplicate claim for the week' because that row belongs to another run. Verify on import: Update Row matching on run_key (same as Mark run blocked)."
     }
   ],
   "connections": {
@@ -3102,7 +3153,7 @@
       "main": [
         [
           {
-            "node": "Source returned no rows",
+            "node": "Mark run failed (no source rows)",
             "type": "main",
             "index": 0
           }
@@ -3957,6 +4008,17 @@
         [
           {
             "node": "Slack summary failed after the email was sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark run failed (no source rows)": {
+      "main": [
+        [
+          {
+            "node": "Source returned no rows",
             "type": "main",
             "index": 0
           }

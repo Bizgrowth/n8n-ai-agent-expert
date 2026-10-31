@@ -220,12 +220,12 @@
       ],
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const st = $('Start from daily scan').first().json;\n  const r = $json;\n  const t = (v) => String(v ?? '').trim();\n  const found = t(r.invoice_no) !== '' && t(r.invoice_no) === t(st.invoice_no);\n  const dueOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(t(r.due_date)) && DateTime.fromISO(t(r.due_date), { zone: 'utc' }).isValid;\n  const balOk = /^-?\\d+(\\.\\d{1,2})?$/.test(t(r.balance));\n  const bal = balOk ? Math.round(Number(t(r.balance)) * 100) : 0;\n  const days = dueOk ? Math.round(DateTime.fromISO($now.toFormat('yyyy-LL-dd'), { zone: 'utc' }).diff(DateTime.fromISO(t(r.due_date), { zone: 'utc' }), 'days').days) : null;\n  const tier = days === null ? 'none' : (days < 1 ? 'not_overdue' : (days <= Number(S.t1_max) ? 't1' : (days <= Number(S.t2_max) ? 't2' : 't3')));\n  const status = t(r.status).toLowerCase();\n  const collectable = found && dueOk && balOk && t(r.doc_type).toLowerCase() === 'invoice' && status === 'open' && bal > 0;\n  return {\n    found: found, collectable: collectable, current_tier: tier, balance_minor: bal, days_past_due: days,\n    stop_status: (found && (status === 'paid' || (balOk && bal <= 0))) ? 'stopped_paid' : 'stopped_changed',\n    invoice_no: t(r.invoice_no), customer_name: t(r.customer_name).replace(/\\s+/g, ' '), currency: t(r.currency).toUpperCase(), due_date: t(r.due_date)\n  };\n})()) }}",
+        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const st = $('Start from daily scan').first().json;\n  const r = $json;\n  const t = (v) => String(v ?? '').trim();\n  const rowCount = $('Fetch invoice now').all().filter((i) => t(i.json.invoice_no) !== '').length;\n  const found = rowCount === 1 && t(r.invoice_no) !== '' && t(r.invoice_no) === t(st.invoice_no);\n  const dueOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(t(r.due_date)) && DateTime.fromISO(t(r.due_date), { zone: 'utc' }).isValid;\n  const balOk = /^-?\\d+(\\.\\d{1,2})?$/.test(t(r.balance));\n  const bal = balOk ? Math.round(Number(t(r.balance)) * 100) : 0;\n  const days = dueOk ? Math.round(DateTime.fromISO($now.toFormat('yyyy-LL-dd'), { zone: 'utc' }).diff(DateTime.fromISO(t(r.due_date), { zone: 'utc' }), 'days').days) : null;\n  const tier = days === null ? 'none' : (days < 1 ? 'not_overdue' : (days <= Number(S.t1_max) ? 't1' : (days <= Number(S.t2_max) ? 't2' : 't3')));\n  const status = t(r.status).toLowerCase();\n  const collectable = found && dueOk && balOk && t(r.doc_type).toLowerCase() === 'invoice' && status === 'open' && bal > 0;\n  return {\n    found: found, row_count: rowCount, collectable: collectable, current_tier: tier, balance_minor: bal, days_past_due: days,\n    stop_status: (found && (status === 'paid' || (balOk && bal <= 0))) ? 'stopped_paid' : 'stopped_changed',\n    invoice_no: t(r.invoice_no), customer_name: t(r.customer_name).replace(/\\s+/g, ' '), currency: t(r.currency).toUpperCase(), due_date: t(r.due_date)\n  };\n})()) }}",
         "includeOtherFields": false,
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Is the invoice still a real open invoice with a balance, and is its current tier the one W2 started? Money in whole minor units. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Is the invoice still a real open invoice with a balance, and is its current tier the one W2 started? Money in whole minor units. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: found is true only when the sheet returned exactly one row with an invoice number (row_count); two or more rows, or none, means found = false and the invoice is not treated as collectable."
     },
     {
       "id": "3ee7bc7b-a180-4df4-a8d6-2286d644f4e2",
@@ -338,13 +338,13 @@
             {
               "id": "a2",
               "name": "reminder_subject",
-              "value": "={{ (() => { const ck = $('Check invoice now').first().json; const S = $('Settings').first().json; return String(S['subject_' + $('Start from daily scan').first().json.tier]).replaceAll('[invoice_no]', ck.invoice_no); })() }}",
+              "value": "={{ (() => { const ck = $('Check invoice now').first().json; const S = $('Settings').first().json; const map = { invoice_no: ck.invoice_no }; return String(S['subject_' + $('Start from daily scan').first().json.tier]).replace(/\\[(invoice_no)\\]/g, (m, k) => map[k]); })() }}",
               "type": "string"
             },
             {
               "id": "a3",
               "name": "reminder_body",
-              "value": "={{ (() => { const ck = $('Check invoice now').first().json; const S = $('Settings').first().json; const tier = $('Start from daily scan').first().json.tier; return String(S['body_' + tier]).replaceAll('[customer_name]', ck.customer_name).replaceAll('[invoice_no]', ck.invoice_no).replaceAll('[balance]', (ck.balance_minor / 100).toFixed(2)).replaceAll('[currency]', ck.currency).replaceAll('[due_date]', ck.due_date).replaceAll('[days_past_due]', String(ck.days_past_due)); })() }}",
+              "value": "={{ (() => { const ck = $('Check invoice now').first().json; const S = $('Settings').first().json; const tier = $('Start from daily scan').first().json.tier; const map = { customer_name: ck.customer_name, invoice_no: ck.invoice_no, balance: (ck.balance_minor / 100).toFixed(2), currency: ck.currency, due_date: ck.due_date, days_past_due: String(ck.days_past_due) }; return String(S['body_' + tier]).replace(/\\[(customer_name|invoice_no|balance|currency|due_date|days_past_due)\\]/g, (m, k) => map[k]); })() }}",
               "type": "string"
             }
           ]
@@ -353,7 +353,7 @@
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Template text only, NO AI. Shows the remaining BALANCE (so partial payments show what is still owed), not the invoice amount. Plain text only. Recipient = demo_recipient, never the customer email. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Template text only, NO AI. Shows the remaining BALANCE (so partial payments show what is still owed), not the invoice amount. Plain text only. Recipient = demo_recipient, never the customer email. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: placeholders are filled in a single pass with a replacer function, so a customer name containing $&, $` or [invoice_no] is inserted as plain text and never interpreted."
     },
     {
       "id": "075d3698-3b67-476a-ad44-6b9ef2910416",
@@ -419,7 +419,7 @@
         "operation": "sendAndWait",
         "sendTo": "={{ $('Settings').first().json.owner_email }}",
         "subject": "={{ 'Approve reminder for invoice ' + $('Start from daily scan').first().json.invoice_no }}",
-        "message": "={{ (() => { const nl = String.fromCharCode(10); const ck = $('Check invoice now').first().json; const w = $('Write reminder from template').first().json; return 'Send this reminder? (Do not forward this email.)' + nl + nl + 'Invoice: ' + ck.invoice_no + nl + 'Balance still owed: ' + (ck.balance_minor / 100).toFixed(2) + ' ' + ck.currency + nl + 'Days past due: ' + ck.days_past_due + nl + 'Level: ' + $('Start from daily scan').first().json.tier + nl + 'It would be sent to the TEST address: ' + w.reminder_to + nl + nl + 'Subject: ' + w.reminder_subject + nl + nl + w.reminder_body; })() }}",
+        "message": "={{ (() => { const nl = String.fromCharCode(10); const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;'); const ck = $('Check invoice now').first().json; const w = $('Write reminder from template').first().json; return esc('Send this reminder? (Do not forward this email.)' + nl + nl + 'Invoice: ' + ck.invoice_no + nl + 'Balance still owed: ' + (ck.balance_minor / 100).toFixed(2) + ' ' + ck.currency + nl + 'Days past due: ' + ck.days_past_due + nl + 'Level: ' + $('Start from daily scan').first().json.tier + nl + 'It would be sent to the TEST address: ' + w.reminder_to + nl + nl + 'Subject: ' + w.reminder_subject + nl + nl + w.reminder_body); })() }}",
         "responseType": "approval",
         "approvalOptions": {
           "values": {
@@ -438,7 +438,7 @@
       "maxTries": 2,
       "waitBetweenTries": 3000,
       "onError": "stopWorkflow",
-      "notes": "Gmail \"Send a message and wait for approval\", Approve and Disapprove (\"Decline\"). Sent to the OWNER. Retry 2 may rarely put two approval emails in the inbox: harmless, the log row is re-checked after the answer. On final failure the log row stays pending and is swept later. Verify on import: sendAndWait parameter names (responseType, approvalOptions), typeVersion 2.1, whether Limit Wait Time exists (set it to approval_wait_hours, expression allowed?), the output field name (expected data.approved), how Decline differs from timeout, and T42 (previewing the email must not count as Approve)."
+      "notes": "Gmail \"Send a message and wait for approval\", Approve and Disapprove (\"Decline\"). Sent to the OWNER. Retry 2 may rarely put two approval emails in the inbox: harmless, the log row is re-checked after the answer. On final failure the log row stays pending and is swept later. Verify on import: sendAndWait parameter names (responseType, approvalOptions), typeVersion 2.1, whether Limit Wait Time exists (set it to approval_wait_hours, expression allowed?), the output field name (expected data.approved), how Decline differs from timeout, and T42 (previewing the email must not count as Approve). Fix pass: the whole approval text (including the customer name) is HTML-escaped (& < > quote) because this text is shown inside an HTML page; the plain-text reminder itself is not changed."
     },
     {
       "id": "6b7c9ef3-f472-4120-a2d8-9a10cffaca1c",
@@ -557,12 +557,12 @@
       ],
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const st = $('Start from daily scan').first().json;\n  const r = $json;\n  const t = (v) => String(v ?? '').trim();\n  const found = t(r.invoice_no) !== '' && t(r.invoice_no) === t(st.invoice_no);\n  const dueOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(t(r.due_date)) && DateTime.fromISO(t(r.due_date), { zone: 'utc' }).isValid;\n  const balOk = /^-?\\d+(\\.\\d{1,2})?$/.test(t(r.balance));\n  const bal = balOk ? Math.round(Number(t(r.balance)) * 100) : 0;\n  const days = dueOk ? Math.round(DateTime.fromISO($now.toFormat('yyyy-LL-dd'), { zone: 'utc' }).diff(DateTime.fromISO(t(r.due_date), { zone: 'utc' }), 'days').days) : null;\n  const tier = days === null ? 'none' : (days < 1 ? 'not_overdue' : (days <= Number(S.t1_max) ? 't1' : (days <= Number(S.t2_max) ? 't2' : 't3')));\n  const status = t(r.status).toLowerCase();\n  const collectable = found && dueOk && balOk && t(r.doc_type).toLowerCase() === 'invoice' && status === 'open' && bal > 0;\n  return {\n    found: found, collectable: collectable, current_tier: tier, balance_minor: bal, days_past_due: days,\n    stop_status: (found && (status === 'paid' || (balOk && bal <= 0))) ? 'stopped_paid' : 'stopped_changed',\n    invoice_no: t(r.invoice_no), customer_name: t(r.customer_name).replace(/\\s+/g, ' '), currency: t(r.currency).toUpperCase(), due_date: t(r.due_date)\n  };\n})()) }}",
+        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const st = $('Start from daily scan').first().json;\n  const r = $json;\n  const t = (v) => String(v ?? '').trim();\n  const rowCount = $('Re-read invoice').all().filter((i) => t(i.json.invoice_no) !== '').length;\n  const found = rowCount === 1 && t(r.invoice_no) !== '' && t(r.invoice_no) === t(st.invoice_no);\n  const dueOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(t(r.due_date)) && DateTime.fromISO(t(r.due_date), { zone: 'utc' }).isValid;\n  const balOk = /^-?\\d+(\\.\\d{1,2})?$/.test(t(r.balance));\n  const bal = balOk ? Math.round(Number(t(r.balance)) * 100) : 0;\n  const days = dueOk ? Math.round(DateTime.fromISO($now.toFormat('yyyy-LL-dd'), { zone: 'utc' }).diff(DateTime.fromISO(t(r.due_date), { zone: 'utc' }), 'days').days) : null;\n  const tier = days === null ? 'none' : (days < 1 ? 'not_overdue' : (days <= Number(S.t1_max) ? 't1' : (days <= Number(S.t2_max) ? 't2' : 't3')));\n  const status = t(r.status).toLowerCase();\n  const collectable = found && dueOk && balOk && t(r.doc_type).toLowerCase() === 'invoice' && status === 'open' && bal > 0;\n  return {\n    found: found, row_count: rowCount, collectable: collectable, current_tier: tier, balance_minor: bal, days_past_due: days,\n    stop_status: (found && (status === 'paid' || (balOk && bal <= 0))) ? 'stopped_paid' : 'stopped_changed',\n    invoice_no: t(r.invoice_no), customer_name: t(r.customer_name).replace(/\\s+/g, ' '), currency: t(r.currency).toUpperCase(), due_date: t(r.due_date)\n  };\n})()) }}",
         "includeOtherFields": false,
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Same check as before the question, on the fresh re-read. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Same check as before the question, on the fresh re-read. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: found is true only when the sheet returned exactly one row with an invoice number (row_count); two or more rows, or none, means found = false and the invoice is not treated as collectable."
     },
     {
       "id": "9730c312-2780-4274-a3fc-298ef56fe49c",
@@ -1004,6 +1004,54 @@
       "waitBetweenTries": 3000,
       "onError": "stopWorkflow",
       "notes": "Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "260609fb-2c9a-4375-85c0-2ff426e7e580",
+      "name": "Keep one invoice row (now)",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        650,
+        160
+      ],
+      "parameters": {
+        "maxItems": 1,
+        "keep": "firstItems"
+      },
+      "onError": "stopWorkflow",
+      "notes": "Keeps the first row only. Safety net: even if a second row appears after the scan, only one item continues (so one approval or one send, never two). The exactly-one check is made in the Check step from the sheet node's full row list, before this Limit. Verify on import: Limit typeVersion 1."
+    },
+    {
+      "id": "04cb2d5e-7a51-4ece-a1c5-ba025a7bc27f",
+      "name": "Keep one log row",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2210,
+        160
+      ],
+      "parameters": {
+        "maxItems": 1,
+        "keep": "firstItems"
+      },
+      "onError": "stopWorkflow",
+      "notes": "Keeps the first row only. Safety net: even if a second row appears after the scan, only one item continues (so one approval or one send, never two). The exactly-one check is made in the Check step from the sheet node's full row list, before this Limit. Verify on import: Limit typeVersion 1."
+    },
+    {
+      "id": "f607689d-2992-46b1-9da0-bb4c9e418e40",
+      "name": "Keep one invoice row (again)",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2470,
+        160
+      ],
+      "parameters": {
+        "maxItems": 1,
+        "keep": "firstItems"
+      },
+      "onError": "stopWorkflow",
+      "notes": "Keeps the first row only. Safety net: even if a second row appears after the scan, only one item continues (so one approval or one send, never two). The exactly-one check is made in the Check step from the sheet node's full row list, before this Limit. Verify on import: Limit typeVersion 1."
     }
   ],
   "connections": {
@@ -1011,7 +1059,7 @@
       "main": [
         [
           {
-            "node": "Check invoice now",
+            "node": "Keep one invoice row (now)",
             "type": "main",
             "index": 0
           }
@@ -1106,7 +1154,7 @@
       "main": [
         [
           {
-            "node": "Re-read invoice",
+            "node": "Keep one log row",
             "type": "main",
             "index": 0
           }
@@ -1117,7 +1165,7 @@
       "main": [
         [
           {
-            "node": "Check invoice again",
+            "node": "Keep one invoice row (again)",
             "type": "main",
             "index": 0
           }
@@ -1234,6 +1282,39 @@
         [
           {
             "node": "Reminder send failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep one invoice row (now)": {
+      "main": [
+        [
+          {
+            "node": "Check invoice now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep one log row": {
+      "main": [
+        [
+          {
+            "node": "Re-read invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep one invoice row (again)": {
+      "main": [
+        [
+          {
+            "node": "Check invoice again",
             "type": "main",
             "index": 0
           }

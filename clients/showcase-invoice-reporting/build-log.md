@@ -111,3 +111,37 @@ All three workflows are **inactive** (`"active": false`). No pinData, no secrets
 
 ## 13. Change log
 - 2026-10-31: v1 built (W1, W2, W3, test data). Goes to the best-practice-reviewer, then the qa-tester.
+
+## 14. Fix pass (2026-10-31, after `review.md`)
+Applied by the builder: review findings M1, M2, M3, L1, L2, L5. Nothing else was changed. Not reviewed and not tested by the builder. Nothing was pushed to n8n. All three workflows are still **inactive**, with no pinData, no secrets, credentials by name only. No new node types were introduced except the existing Limit (typeVersion 1, same as W2 "Cap per run"); no typeVersion was verified (still unverified, section 7).
+
+### Changes
+| Finding | Workflow | Change |
+|---|---|---|
+| M1 | W1 | "Already running or sent?" now treats `sending` and `sent` as permanent blocks, and `running` as blocking only when `started_at` is under 30 minutes old (an unreadable `started_at` still blocks). A stale `running` week can be claimed again; the keyed claim updates the same `run_key` row, so "Exactly one claim" still holds. |
+| M1 (optional part) | W1 | New node "Mark run failed (no source rows)" (Update Row, status `failed`, continue on error) between "Source empty?" and "Source returned no rows". Not added to "Duplicate claim for the week" on purpose: that row belongs to another run. Other failure points (Sheets outage, crash) still leave `running`, which the 30 minute rule now handles. |
+| M2 | W2 | "Bad rows or duplicate claims seen?" is no longer fed from "Check invoice row". It is fed from the end of the approvals branch: output 0 of "Start approval run (W3)" and "Duplicate claim skipped (counted)". Its test is now true only when approvals are finished (W3 start has run, or no row passed the claim check) AND there were bad rows or duplicate claims. So the result no longer depends on which branch n8n runs first. Both nodes moved next to the end of the main row. The Stop and Error message no longer needs `isExecuted`. |
+| M3 | W3 | Three new Limit nodes (keep first 1): "Keep one invoice row (now)" after "Fetch invoice now", "Keep one log row" after "Re-read log row", "Keep one invoice row (again)" after "Re-read invoice". "Check invoice now" and "Check invoice again" now count the rows the sheet node returned (rows with an invoice number) and set `found = false` unless there is exactly one; `row_count` is added to their output. |
+| L1 | W3 | "Write reminder from template" fills all placeholders in one pass with a replacer function (so `$&`, `` $` `` and a name that contains `[invoice_no]` are inserted as plain text). "Ask owner to approve" HTML-escapes the whole approval text (`& < > " '`), which includes the customer name. The name itself is not stripped, so a legitimate name such as "Smith & Sons" is kept. |
+| L2 | W1 | "Log duplicate run" writes `run_key = week_start|dup|<execution id>`, so it never shares a key with the claim row. |
+| L5 | W2 | `?? []` guards in "Gather invoices", "Stale pending rows", "Log rows list" and "Open approvals list". |
+
+### Re-checks after the edits (throwaway scripts in /tmp, not in the repo)
+- Lint: W1 0 must-fix, 0 warnings. W2 0 must-fix, 0 warnings. W3 0 must-fix, 1 warning ("Workflow timeout is set", deliberate, unchanged).
+- All three parse; `active` false; no `pinData`; node ids unique; every connection source and target exists; every `$('Node name')` reference exists (0 bad); every expression compiles (W1 159, W2 62, W3 56). Node counts now W1 91, W2 44, W3 28.
+- Reachability: W3 "Send reminder to test address" still has exactly one inbound connection (output 0 of "Still unpaid and unchanged?"), and removing any one of the three gates makes it unreachable. `customer_email` does not appear in W3. W2 still has no Gmail or Slack node, and "Start approval run (W3)" is unreachable without output 0 of the claim check. W1 "Mark run sending", "Mark run sent" and the claim gate are unreachable without their gates. No unreachable node except the four AI sub-nodes, which connect through AI ports.
+- Substitution test with stubs: a name `A $& B $` C [invoice_no]` comes out unchanged; an HTML name comes out escaped.
+
+### Deliberately left (for QA or the owner)
+- **L3** (AI validator gaps, retry count, enum): QA runs the C1 to C13 set including a bare domain; owner checks model-node retries on import.
+- **L4** (`approval_wait_hours` in two places): QA note for T17 and handoff: change it in W2 and W3, then change both back.
+- **L6** (maintainability, section sticky notes in W1): optional before handoff.
+- **L7** (Error Workflow placeholder): owner sets it on all three; QA ticks it first.
+- **L8** (static control CSVs, frozen test date, decline draft failure silent): QA and test-data notes.
+- Deviations 1 to 8 and 10 to 15 unchanged. Deviation 9 (execution order) now applies only to the W2 compare inputs and the W1 joins, not to the end alert.
+
+### Open points from this pass
+1. **Residual gap in M2.** The W2 end alert now runs only when at least one invoice reaches the claim stage. On a day with bad source rows but nothing to claim (nothing overdue, or everything already handled), no end alert fires and the run ends Success. Previously it would alert, but could also block approvals. Owner decision: accept, or have a later pass add an extra feed (the dead ends sit at several places in the chain).
+2. Verify on import that "Start approval run (W3)" output 0 emits items when waiting is off; if it does not, the alert only fires when the duplicate branch runs after it.
+3. Test-plan notes: T27 variant: one bad row plus several eligible invoices, expect all approvals to exist and then Error. T6: confirm the duplicate row has the `|dup|` key. T4 variant D, T9: re-run the same week after 30 minutes (or edit `started_at`) to prove the stale `running` rule. T29/T41: add a name with `<a href=...>` and one with `$&`. T23-type case: a second invoice row with the same number must stop W3 (`found` false).
+4. Change log: 2026-10-31 fix pass M1, M2, M3, L1, L2, L5 applied; goes back to a quick re-review of the touched nodes, then QA.

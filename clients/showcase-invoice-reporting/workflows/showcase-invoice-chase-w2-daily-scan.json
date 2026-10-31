@@ -285,7 +285,7 @@
             {
               "id": "a1",
               "name": "rows",
-              "value": "={{ $('Pack invoices').first().json.rows }}",
+              "value": "={{ ($('Pack invoices').first().json.rows ?? []) }}",
               "type": "array"
             }
           ]
@@ -294,7 +294,7 @@
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: \"?? []\" guard so an empty or header-only tab cannot cause a type error."
     },
     {
       "id": "0ba9b32b-3d6a-4267-ac15-08c47c91c6f4",
@@ -511,7 +511,7 @@
             {
               "id": "a1",
               "name": "rows",
-              "value": "={{ $('Pack reminder log').first().json.logrows.filter((r) => String(r.status ?? '').trim() === 'pending' && DateTime.fromISO(String(r.claimed_at ?? '')) < DateTime.fromISO($('Today').first().json.stale_cutoff_iso)).map((r) => ({ log_key: String(r.log_key) })) }}",
+              "value": "={{ ($('Pack reminder log').first().json.logrows ?? []).filter((r) => String(r.status ?? '').trim() === 'pending' && DateTime.fromISO(String(r.claimed_at ?? '')) < DateTime.fromISO($('Today').first().json.stale_cutoff_iso)).map((r) => ({ log_key: String(r.log_key) })) }}",
               "type": "array"
             }
           ]
@@ -520,7 +520,7 @@
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: \"?? []\" guard so an empty or header-only tab cannot cause a type error."
     },
     {
       "id": "6515544d-6246-4206-a8c7-9f627ade5132",
@@ -610,7 +610,7 @@
             {
               "id": "a1",
               "name": "rows",
-              "value": "={{ $('Pack reminder log').first().json.logrows.map((r) => ({ log_key: String(r.log_key ?? '') })) }}",
+              "value": "={{ ($('Pack reminder log').first().json.logrows ?? []).map((r) => ({ log_key: String(r.log_key ?? '') })) }}",
               "type": "array"
             }
           ]
@@ -619,7 +619,7 @@
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: \"?? []\" guard so an empty or header-only tab cannot cause a type error."
     },
     {
       "id": "9fa75c0c-1452-4240-a108-de512aacb520",
@@ -686,7 +686,7 @@
             {
               "id": "a1",
               "name": "rows",
-              "value": "={{ $('Pack reminder log').first().json.logrows.filter((r) => String(r.status ?? '').trim() === 'pending' && !(DateTime.fromISO(String(r.claimed_at ?? '')) < DateTime.fromISO($('Today').first().json.stale_cutoff_iso))).map((r) => ({ invoice_no: String(r.invoice_no ?? '') })) }}",
+              "value": "={{ ($('Pack reminder log').first().json.logrows ?? []).filter((r) => String(r.status ?? '').trim() === 'pending' && !(DateTime.fromISO(String(r.claimed_at ?? '')) < DateTime.fromISO($('Today').first().json.stale_cutoff_iso))).map((r) => ({ invoice_no: String(r.invoice_no ?? '') })) }}",
               "type": "array"
             }
           ]
@@ -695,7 +695,7 @@
         "options": {}
       },
       "onError": "stopWorkflow",
-      "notes": "Pending and NOT stale by the same cut-off as the sweep (a timestamp test, not the swept status: the log was read before the sweep). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "Pending and NOT stale by the same cut-off as the sweep (a timestamp test, not the swept status: the log was read before the sweep). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance. Fix pass: \"?? []\" guard so an empty or header-only tab cannot cause a type error."
     },
     {
       "id": "bb3e34fc-3f6c-4326-a980-b28069fc9190",
@@ -1290,8 +1290,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2600,
-        1800
+        7020,
+        0
       ],
       "parameters": {
         "conditions": {
@@ -1304,7 +1304,7 @@
           "conditions": [
             {
               "id": "c1",
-              "leftValue": "={{ (() => { const bad = $('Check invoice row').all().filter((i) => i.json.row_valid !== true).length; const dup = $('Exactly one row for this level and it is ours? (false = skip)').isExecuted ? $('Exactly one row for this level and it is ours? (false = skip)').all(1).length : 0; return bad > 0 || dup > 0; })() }}",
+              "leftValue": "={{ (() => { const bad = $('Check invoice row').all().filter((i) => i.json.row_valid !== true).length; const dup = $('Exactly one row for this level and it is ours? (false = skip)').all(1).length; const passed = $('Exactly one row for this level and it is ours? (false = skip)').all(0).length; const approvalsDone = $('Start approval run (W3)').isExecuted || passed === 0; return approvalsDone && (bad > 0 || dup > 0); })() }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -1319,7 +1319,7 @@
       },
       "onError": "stopWorkflow",
       "executeOnce": true,
-      "notes": "Runs once, after the main branch (v1 execution order: upper branch first; verify on import). TRUE = alert the owner after the work is started. Counts only, no row content. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+      "notes": "End-of-run alert. It is now fed only from the END of the approvals branch (after \"Start approval run (W3)\" and after \"Duplicate claim skipped (counted)\"), not from the start of the flow, so it no longer depends on n8n branch execution order. It is true only when approvals are finished (Start has run, or no row passed the claim check) AND there were bad source rows or duplicate claims. If the duplicate branch reaches it before Start has run, it stays false and Start's feed decides. Fix pass M2. Known limit: on a day when no invoice reaches the claim stage (nothing overdue, everything already handled), this alert does not run, so bad source rows are not alerted that day (see build-log Fix pass). Verify on import: that \"Start approval run (W3)\" output 0 emits items when waiting is off."
     },
     {
       "id": "cd3866ae-a6dc-49c5-a972-d433a556bf75",
@@ -1327,12 +1327,12 @@
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        2860,
-        1800
+        7280,
+        0
       ],
       "parameters": {
         "errorType": "errorMessage",
-        "errorMessage": "={{ (() => { const bad = $('Check invoice row').all().filter((i) => i.json.row_valid !== true).length; const dup = $('Exactly one row for this level and it is ours? (false = skip)').isExecuted ? $('Exactly one row for this level and it is ours? (false = skip)').all(1).length : 0; return bad + ' source rows skipped: bad data, ' + dup + ' duplicate claims'; })() }}"
+        "errorMessage": "={{ (() => { const bad = $('Check invoice row').all().filter((i) => i.json.row_valid !== true).length; const dup = $('Exactly one row for this level and it is ours? (false = skip)').all(1).length; return bad + ' source rows skipped: bad data, ' + dup + ' duplicate claims'; })() }}"
       },
       "notes": "Counts only. Ends the run in Error so the shared alert tells the owner. No customer names in the message. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
     }
@@ -1431,11 +1431,6 @@
         [
           {
             "node": "Keep valid rows",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Bad rows or duplicate claims seen? (true = alert)",
             "type": "main",
             "index": 0
           }
@@ -1755,7 +1750,13 @@
     },
     "Start approval run (W3)": {
       "main": [
-        [],
+        [
+          {
+            "node": "Bad rows or duplicate claims seen? (true = alert)",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Mark start failure",
@@ -1781,6 +1782,17 @@
         [
           {
             "node": "Source rows skipped or duplicate claims",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate claim skipped (counted)": {
+      "main": [
+        [
+          {
+            "node": "Bad rows or duplicate claims seen? (true = alert)",
             "type": "main",
             "index": 0
           }
