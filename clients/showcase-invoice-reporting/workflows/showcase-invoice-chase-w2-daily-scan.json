@@ -1,0 +1,1802 @@
+{
+  "name": "SHOWCASE | Invoice Chase | Schedule → Overdue scan + approval requests | v1",
+  "active": false,
+  "nodes": [
+    {
+      "id": "31576416-73b7-4350-a908-b4a6d2b7af48",
+      "name": "Sticky note: read me first",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -560
+      ],
+      "parameters": {
+        "width": 760,
+        "height": 600,
+        "content": "## SHOWCASE | Invoice Chase | Daily overdue scan | v1 (W2 of 3)\n**Purpose:** every morning find overdue invoices, pick a level (friendly 1-7 days, firm 8-30, final 31+), skip any invoice that already has that level, claim the rest in the reminder log, and start ONE approval run (W3) per invoice. Nothing is sent from here. No auto-send path exists.\n**Owner:** AI Ops Expert owner. **Trigger:** Schedule, every day 08:00 in the workflow time zone. **Version:** v1. **Last change:** 2026-10-31. **n8n version built on:** PLACEHOLDER_N8N_VERSION_AND_EDITION (unknown). **Built INACTIVE. Synthetic data only.**\n**AFTER IMPORT (owner):** (1) Import W3 FIRST, then open \"Start approval run (W3)\" and select W3 (the file holds PLACEHOLDER_W3_WORKFLOW_ID). (2) Settings > Error Workflow = `SHARED | Error Alert | Error Trigger → Slack alert | v1` (file holds PLACEHOLDER_ERROR_ALERT_WORKFLOW_ID). (3) Timezone: file holds UTC as a safe default; set PLACEHOLDER_TIMEZONE and make the spreadsheet zone equal. (4) Fill the PLACEHOLDER_ values in Settings. (5) Select credentials on each node with a warning; lock header rows of the tabs first. (6) Do not activate. If W2 is ever switched off, pending rows stay and block that invoice's level (the stale sweep only runs here).\n**Sheets is not transactional:** claim, then re-read and confirm exactly one row; if it cannot confirm, that invoice is skipped (fails safe) and counted.\n**Verify on import:** every typeVersion and each node marked in its notes (design sections 8 and 17)."
+      }
+    },
+    {
+      "id": "012d70c1-7eff-4528-a0ff-d9ff191a84db",
+      "name": "Daily start",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "notes": "Every day 08:00 in the workflow time zone. Missed-run option left at the default (not set): the next day picks up everything still overdue. Verify on import: typeVersion 1.2."
+    },
+    {
+      "id": "93219205-275e-48c1-ab2b-e33129e14c72",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "spreadsheet_id",
+              "value": "PLACEHOLDER_SPREADSHEET_ID",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "tab_invoices",
+              "value": "invoices",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "tab_reminder_log",
+              "value": "reminder_log",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "allowed_currencies",
+              "value": "USD,EUR",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "t1_max",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "a6",
+              "name": "t2_max",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "a7",
+              "name": "max_drafts_per_run",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "a8",
+              "name": "approval_wait_hours",
+              "value": 48,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Tier limits: t1 1 to 7 days, t2 8 to 30, t3 31 and over. QA may set approval_wait_hours to a few minutes for T17 (do the same in W3), then back to 48. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "03930337-e68b-4ffd-af37-c5f1d0728e44",
+      "name": "Today",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "run_date",
+              "value": "={{ $now.toFormat('yyyy-LL-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "stale_cutoff_iso",
+              "value": "={{ $now.minus({ hours: Number($('Settings').first().json.approval_wait_hours) + 2 }).toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Date-only text in the workflow time zone. Pending rows older than the cut-off (wait hours + 2) count as stale. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "77f1adbc-f5a2-4e40-a463-f022c6678c1e",
+      "name": "Read invoices",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_invoices }}"
+        },
+        "options": {
+          "returnAllMatches": "returnAllMatches",
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Whole invoices tab once, unformatted values. An empty tab gives one blank item that the row check counts as a bad row (loud, on purpose). Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "99fc2a14-8df8-4d28-a7d1-75451976a974",
+      "name": "Pack invoices",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "rows",
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: Aggregate with zero items / one blank item. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "dc30be80-9efa-4445-a73a-fa0762ed0f9a",
+      "name": "Read reminder log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "options": {
+          "returnAllMatches": "returnAllMatches",
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Whole log once. If this read fails the scan stops: never scan without the log (duplicates are worse than a missed day). Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "e42022e2-b6f4-4781-ac77-c97cbbe93f18",
+      "name": "Pack reminder log",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        0
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "logrows",
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: Aggregate with zero items / one blank item. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "3d18e32d-7071-4885-a98a-de4cfcc94a88",
+      "name": "Gather invoices",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "rows",
+              "value": "={{ $('Pack invoices').first().json.rows }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "0ba9b32b-3d6a-4267-ac15-08c47c91c6f4",
+      "name": "Split invoices",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "rows",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "row"
+        }
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: destination field name option, and whether an array of objects is nested under the destination name or spread (the next step reads either). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "338c750c-c7df-4671-a9a6-08c7941bb996",
+      "name": "Check invoice row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2340,
+        0
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const r = $json.row ?? $json;\n  const t = (v) => String(v ?? '').trim();\n  const allowed = String(S.allowed_currencies).split(',').map((x) => x.trim().toUpperCase());\n  const moneyOk = (v) => /^-?\\d+(\\.\\d{1,2})?$/.test(t(v));\n  const dateOk = (v) => /^\\d{4}-\\d{2}-\\d{2}$/.test(t(v)) && DateTime.fromISO(t(v), { zone: 'utc' }).isValid;\n  const minor = (v) => moneyOk(v) ? Math.round(Number(t(v)) * 100) : 0;\n  const inv = t(r.invoice_no);\n  const cur = t(r.currency).toUpperCase();\n  const docType = t(r.doc_type).toLowerCase();\n  const status = t(r.status).toLowerCase();\n  const dup = $('Split invoices').all().filter((x) => t((x.json.row ?? x.json).invoice_no) === inv).length > 1;\n  const am = minor(r.amount);\n  const pm = minor(r.amount_paid);\n  const bm = minor(r.balance);\n  let bad = '';\n  if (inv === '') bad = 'missing_invoice_no';\n  else if (dup) bad = 'duplicate_invoice_no';\n  else if (!moneyOk(r.amount) || !moneyOk(r.amount_paid) || !moneyOk(r.balance)) bad = 'bad_money';\n  else if (!dateOk(r.issue_date) || !dateOk(r.due_date) || (t(r.paid_date) !== '' && !dateOk(r.paid_date))) bad = 'bad_date';\n  else if (!allowed.includes(cur)) bad = 'bad_currency';\n  else if (!['invoice', 'credit_note'].includes(docType) || !['open', 'paid', 'void'].includes(status)) bad = 'bad_type_or_status';\n  else if (status !== 'void' && bm !== am - pm) bad = 'balance_mismatch';\n  else if (docType === 'invoice' && bm < 0) bad = 'negative_balance';\n  return {\n    invoice_no: inv, doc_type: docType, status: status,\n    customer_name: t(r.customer_name).replace(/\\s+/g, ' '), customer_email: t(r.customer_email),\n    issue_date: t(r.issue_date), due_date: t(r.due_date), paid_date: t(r.paid_date), currency: cur,\n    amount_minor: am, paid_minor: pm, balance_minor: bm,\n    email_usable: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(t(r.customer_email)),\n    bad_reason: bad, row_valid: bad === ''\n  };\n})()) }}",
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Raw-cell validity first. A duplicate invoice_no marks every row with that number invalid. Invalid rows are counted (end of run) and skipped, never silently dropped. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "02e7fa19-396c-4641-a3b4-7a5a593961df",
+      "name": "Keep valid rows",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.row_valid === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "05b7bc10-2a87-486b-a484-2ce4688d4c53",
+      "name": "Collectable invoices",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.doc_type === 'invoice' && $json.status === 'open' && $json.balance_minor > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Credit notes, void and paid rows leave here. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "2af6f76f-9875-40d8-ab12-fdf1baccc7f4",
+      "name": "Days past due and level",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3120,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "days_past_due",
+              "value": "={{ Math.round(DateTime.fromISO($('Today').first().json.run_date, { zone: 'utc' }).diff(DateTime.fromISO($json.due_date, { zone: 'utc' }), 'days').days) }}",
+              "type": "number"
+            },
+            {
+              "id": "a2",
+              "name": "tier",
+              "value": "={{ (() => { const d = Math.round(DateTime.fromISO($('Today').first().json.run_date, { zone: 'utc' }).diff(DateTime.fromISO($json.due_date, { zone: 'utc' }), 'days').days); const S = $('Settings').first().json; return d < 1 ? 'not_overdue' : (d <= Number(S.t1_max) ? 't1' : (d <= Number(S.t2_max) ? 't2' : 't3')); })() }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "log_key",
+              "value": "={{ String($json.invoice_no) + '|' + (() => { const d = Math.round(DateTime.fromISO($('Today').first().json.run_date, { zone: 'utc' }).diff(DateTime.fromISO($json.due_date, { zone: 'utc' }), 'days').days); const S = $('Settings').first().json; return d < 1 ? 'not_overdue' : (d <= Number(S.t1_max) ? 't1' : (d <= Number(S.t2_max) ? 't2' : 't3')); })() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Day maths on date-only text parsed in UTC (no 23 or 25-hour days). Due today = 0 = not overdue. invoice_no is converted to text. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "9f499dd5-1328-461f-a524-65efe03a6c29",
+      "name": "Overdue? (false = no action)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.days_past_due >= 1 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "TRUE = overdue. FALSE = \"not overdue (no action)\". Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "1f5a3455-836c-4a98-a0dc-f4ce28009322",
+      "name": "Not overdue (no action)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3380,
+        300
+      ],
+      "parameters": {},
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "299213af-dab9-4480-ae0b-bae1579afe54",
+      "name": "Stale pending rows",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        600
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "rows",
+              "value": "={{ $('Pack reminder log').first().json.logrows.filter((r) => String(r.status ?? '').trim() === 'pending' && DateTime.fromISO(String(r.claimed_at ?? '')) < DateTime.fromISO($('Today').first().json.stale_cutoff_iso)).map((r) => ({ log_key: String(r.log_key) })) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "6515544d-6246-4206-a8c7-9f627ade5132",
+      "name": "Split stale rows",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        600
+      ],
+      "parameters": {
+        "fieldToSplitOut": "rows",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "row"
+        }
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: destination field name option, and whether an array of objects is nested under the destination name or spread (the next step reads either). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "42bcbb9a-dec5-4518-a1ec-87d1b8166c81",
+      "name": "Mark stale approvals timed out",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2340,
+        600
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ ($json.row ?? $json).log_key }}",
+            "status": "timed_out",
+            "decided_at": "={{ $now.toISO() }}",
+            "note": "swept_stale"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "STALE SWEEP: pending rows older than approval_wait_hours + 2 become timed_out. Works only while W2 keeps running. Side branch: it does not hold up the scan. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "89d01408-af0c-4a1f-a17d-c0d64291a74c",
+      "name": "Log rows list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        1000
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "rows",
+              "value": "={{ $('Pack reminder log').first().json.logrows.map((r) => ({ log_key: String(r.log_key ?? '') })) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "9fa75c0c-1452-4240-a108-de512aacb520",
+      "name": "Split log rows",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        1000
+      ],
+      "parameters": {
+        "fieldToSplitOut": "rows",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "row"
+        }
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: destination field name option, and whether an array of objects is nested under the destination name or spread (the next step reads either). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "298e018b-9a5d-4aff-ab37-79b87e29dbe3",
+      "name": "Flatten log row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2340,
+        1000
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "log_key",
+              "value": "={{ String(($json.row ?? $json).log_key ?? '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "A blank item (empty log) gets an empty log_key that matches nothing. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "a9a5bba7-720c-4067-ac10-ab47a15c5f95",
+      "name": "Open approvals list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        1400
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "rows",
+              "value": "={{ $('Pack reminder log').first().json.logrows.filter((r) => String(r.status ?? '').trim() === 'pending' && !(DateTime.fromISO(String(r.claimed_at ?? '')) < DateTime.fromISO($('Today').first().json.stale_cutoff_iso))).map((r) => ({ invoice_no: String(r.invoice_no ?? '') })) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Pending and NOT stale by the same cut-off as the sweep (a timestamp test, not the swept status: the log was read before the sweep). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "bb3e34fc-3f6c-4326-a980-b28069fc9190",
+      "name": "Split open approvals",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        1400
+      ],
+      "parameters": {
+        "fieldToSplitOut": "rows",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "row"
+        }
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: destination field name option, and whether an array of objects is nested under the destination name or spread (the next step reads either). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "50a1dcdb-5cf1-4d8c-a885-ba6865239bf6",
+      "name": "Flatten open approval",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2340,
+        1400
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "invoice_no",
+              "value": "={{ String(($json.row ?? $json).invoice_no ?? '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "3c05391e-1116-4fe5-a8fb-94c5f450ad8a",
+      "name": "Already handled this level? (keep In A only)",
+      "type": "n8n-nodes-base.compareDatasets",
+      "typeVersion": 2.3,
+      "position": [
+        3640,
+        0
+      ],
+      "parameters": {
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "log_key",
+              "field2": "log_key"
+            }
+          ]
+        },
+        "fuzzyCompare": false,
+        "options": {
+          "multipleMatches": "first"
+        }
+      },
+      "onError": "stopWorkflow",
+      "notes": "Input A = overdue invoices, Input B = all log rows, matched on log_key. Keep only invoices with NO log row for this level (one reminder per invoice per level). First run with an empty log: every invoice must come out as In A only; if the node does not run on an empty Input B, add a \"log is empty\" bypass. Output 1 = In A only. Verify on import: Compare Datasets typeVersion 2.3, output order (In A only, Same, Different, In B only), the Multiple Matches option, behaviour with an empty Input B and with a blank item in B (T20). Fuzzy Compare is OFF on purpose (keys are text on both sides)."
+    },
+    {
+      "id": "1b95fd28-a629-4196-a5cd-d9fae82484ef",
+      "name": "Open approval on this invoice? (keep In A only)",
+      "type": "n8n-nodes-base.compareDatasets",
+      "typeVersion": 2.3,
+      "position": [
+        3900,
+        0
+      ],
+      "parameters": {
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "invoice_no",
+              "field2": "invoice_no"
+            }
+          ]
+        },
+        "fuzzyCompare": false,
+        "options": {
+          "multipleMatches": "first"
+        }
+      },
+      "onError": "stopWorkflow",
+      "notes": "Input B = pending, not-stale rows; matched on invoice_no (text both sides). Keep only invoices with no open approval (one open approval per invoice). Output 1 = In A only. Verify on import: Compare Datasets typeVersion 2.3, output order (In A only, Same, Different, In B only), the Multiple Matches option, behaviour with an empty Input B and with a blank item in B (T20). Fuzzy Compare is OFF on purpose (keys are text on both sides)."
+    },
+    {
+      "id": "2bbaf50a-b679-4b1d-a7ac-710ebdc096a8",
+      "name": "Email usable? (false = log and skip)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.email_usable === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "TRUE = usable. FALSE = missing or malformed address: log skipped_no_email (final for that level) and end for that invoice. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "7a820612-8e58-4077-a7e6-0eed0ff2b858",
+      "name": "Log no-email skip",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4160,
+        360
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $json.log_key }}",
+            "invoice_no": "={{ $json.invoice_no }}",
+            "tier": "={{ $json.tier }}",
+            "status": "skipped_no_email",
+            "days_past_due_at_claim": "={{ $json.days_past_due }}",
+            "currency": "={{ $json.currency }}",
+            "balance_at_claim": "={{ $json.balance_minor / 100 }}",
+            "claimed_at": "={{ $now.toISO() }}",
+            "decided_at": "={{ $now.toISO() }}",
+            "scan_execution_id": "={{ String($execution.id) }}",
+            "note": "no_usable_email"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Counted in the weekly report. FINAL for that level: if the address is fixed later this invoice is not asked again at this level. Keyed Append or Update; if a plain Append is used instead, set Retry On Fail OFF. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"appendOrUpdate\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "eddd7754-49ad-402c-a427-b4dff3fa5034",
+      "name": "Remove duplicate claims",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        4420,
+        0
+      ],
+      "parameters": {
+        "operation": "removeDuplicateInputItems",
+        "compare": "selectedFields",
+        "fieldsToCompare": "log_key",
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Safety net so one scan can never claim a key twice. Verify on import: Remove Duplicates typeVersion 2 and parameter names."
+    },
+    {
+      "id": "4b5bc33a-5390-4075-ac89-bdd40e58ccf0",
+      "name": "Cap per run",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4680,
+        0
+      ],
+      "parameters": {
+        "maxItems": "={{ $('Settings').first().json.max_drafts_per_run }}",
+        "keep": "firstItems"
+      },
+      "onError": "stopWorkflow",
+      "notes": "Blast limit (max_drafts_per_run). The rest are picked up tomorrow because they have no log row yet. Verify on import: Limit typeVersion 1."
+    },
+    {
+      "id": "5bb1dca3-c850-4e8c-a554-4ac8d9e5121a",
+      "name": "Claim reminders",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4940,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $json.log_key }}",
+            "invoice_no": "={{ $json.invoice_no }}",
+            "tier": "={{ $json.tier }}",
+            "status": "pending",
+            "days_past_due_at_claim": "={{ $json.days_past_due }}",
+            "currency": "={{ $json.currency }}",
+            "balance_at_claim": "={{ $json.balance_minor / 100 }}",
+            "claimed_at": "={{ $now.toISO() }}",
+            "scan_execution_id": "={{ String($execution.id) }}"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "CLAIM before asking, keyed on log_key. If no match column is possible: use Append Row with Retry On Fail OFF (a retried plain append could write a second pending row). On failure the scan stops before any approval email. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"appendOrUpdate\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "365b4d50-98d6-46ec-a309-d8b6b75626b5",
+      "name": "Re-read log after claim",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5200,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "options": {
+          "returnAllMatches": "returnAllMatches",
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notes": "Runs once (not once per claimed invoice). Verify on import that a re-read right after the writes sees the new rows (read-after-write delay). Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "666e5028-0d40-4a18-a3be-5e3ca827b63b",
+      "name": "Pack log after claim",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        5460,
+        0
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "logrows",
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: Aggregate with zero items / one blank item. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "8cd024ea-6f7e-4c48-a41e-fbb8632f7d4c",
+      "name": "Claimed invoices",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5720,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "rows",
+              "value": "={{ $('Cap per run').all().map((i) => ({ invoice_no: String(i.json.invoice_no), tier: String(i.json.tier), log_key: String(i.json.log_key) })) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "3b29213f-3c63-4fb0-a63d-96c9d67e85eb",
+      "name": "Split claimed invoices",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        5980,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "rows",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "row"
+        }
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: destination field name option, and whether an array of objects is nested under the destination name or spread (the next step reads either). Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "8d446d68-ac3b-478b-a82c-6b536ddda78f",
+      "name": "Flatten claimed invoice",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6240,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "invoice_no",
+              "value": "={{ String(($json.row ?? $json).invoice_no) }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "tier",
+              "value": "={{ String(($json.row ?? $json).tier) }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "log_key",
+              "value": "={{ String(($json.row ?? $json).log_key) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "793283d0-7439-457e-a050-9c1def31fb99",
+      "name": "Exactly one row for this level and it is ours? (false = skip)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6500,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ (() => { const rows = $('Pack log after claim').first().json.logrows.filter((r) => String(r.log_key) === $json.log_key); return rows.length === 1 && String(rows[0].scan_execution_id) === String($execution.id); })() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Claim-then-check. TRUE = ours. FALSE = not ours (duplicate or unconfirmed): do not start W3 for that invoice; it is counted as a duplicate claim and alerted at the end. Fails safe. Two scans started together may each skip, leaving duplicate pending rows that the sweep ends as timed_out (closing that level); the owner deletes them by hand to re-open it. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "777b1a12-52cf-4162-afc3-4d0e4a530d65",
+      "name": "Duplicate claim skipped (counted)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        6500,
+        360
+      ],
+      "parameters": {},
+      "notes": "Counted by the end-of-run check via this node's second output. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "7d7c9af1-6911-4733-a1b1-0b184f66d6fd",
+      "name": "Start approval run (W3)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        6760,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PLACEHOLDER_W3_WORKFLOW_ID"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_no": "={{ $json.invoice_no }}",
+            "tier": "={{ $json.tier }}",
+            "log_key": "={{ $json.log_key }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "One W3 run per invoice, mode \"Run once for each item\", Wait For Sub-Workflow Completion OFF (W2 ends in seconds; each approval is its own execution). No retry. Error output = failure to START the child only; a crash inside W3 is caught by W3's own Error Workflow and its claim stays pending until swept. Select W3 in the workflow field after importing it. Verify on import: Execute Workflow typeVersion 1.2 and parameter names, that all children start, and whether a manual run of W2 starts children that pause and resume."
+    },
+    {
+      "id": "1902f809-826e-44d8-ab3c-badee9da2b11",
+      "name": "Mark start failure",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6760,
+        360
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $json.log_key }}",
+            "status": "send_failed",
+            "note": "child_not_started",
+            "decided_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "92b01e41-3dcd-47aa-a835-a0863b1c1e1f",
+      "name": "W3 could not be started",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        7020,
+        360
+      ],
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "An approval run could not be started, see reminder_log (child_not_started)"
+      },
+      "notes": "No customer names in the message. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "6db9695e-c1ca-4dba-a808-79da202eb153",
+      "name": "Bad rows or duplicate claims seen? (true = alert)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        1800
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ (() => { const bad = $('Check invoice row').all().filter((i) => i.json.row_valid !== true).length; const dup = $('Exactly one row for this level and it is ours? (false = skip)').isExecuted ? $('Exactly one row for this level and it is ours? (false = skip)').all(1).length : 0; return bad > 0 || dup > 0; })() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "executeOnce": true,
+      "notes": "Runs once, after the main branch (v1 execution order: upper branch first; verify on import). TRUE = alert the owner after the work is started. Counts only, no row content. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "cd3866ae-a6dc-49c5-a972-d433a556bf75",
+      "name": "Source rows skipped or duplicate claims",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        1800
+      ],
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "={{ (() => { const bad = $('Check invoice row').all().filter((i) => i.json.row_valid !== true).length; const dup = $('Exactly one row for this level and it is ours? (false = skip)').isExecuted ? $('Exactly one row for this level and it is ours? (false = skip)').all(1).length : 0; return bad + ' source rows skipped: bad data, ' + dup + ' duplicate claims'; })() }}"
+      },
+      "notes": "Counts only. Ends the run in Error so the shared alert tells the owner. No customer names in the message. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    }
+  ],
+  "connections": {
+    "Daily start": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Today": {
+      "main": [
+        [
+          {
+            "node": "Read invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read invoices": {
+      "main": [
+        [
+          {
+            "node": "Pack invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pack invoices": {
+      "main": [
+        [
+          {
+            "node": "Read reminder log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read reminder log": {
+      "main": [
+        [
+          {
+            "node": "Pack reminder log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pack reminder log": {
+      "main": [
+        [
+          {
+            "node": "Gather invoices",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stale pending rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log rows list",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Open approvals list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gather invoices": {
+      "main": [
+        [
+          {
+            "node": "Split invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split invoices": {
+      "main": [
+        [
+          {
+            "node": "Check invoice row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check invoice row": {
+      "main": [
+        [
+          {
+            "node": "Keep valid rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bad rows or duplicate claims seen? (true = alert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep valid rows": {
+      "main": [
+        [
+          {
+            "node": "Collectable invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collectable invoices": {
+      "main": [
+        [
+          {
+            "node": "Days past due and level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Days past due and level": {
+      "main": [
+        [
+          {
+            "node": "Overdue? (false = no action)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Overdue? (false = no action)": {
+      "main": [
+        [
+          {
+            "node": "Already handled this level? (keep In A only)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not overdue (no action)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stale pending rows": {
+      "main": [
+        [
+          {
+            "node": "Split stale rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split stale rows": {
+      "main": [
+        [
+          {
+            "node": "Mark stale approvals timed out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log rows list": {
+      "main": [
+        [
+          {
+            "node": "Split log rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split log rows": {
+      "main": [
+        [
+          {
+            "node": "Flatten log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open approvals list": {
+      "main": [
+        [
+          {
+            "node": "Split open approvals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split open approvals": {
+      "main": [
+        [
+          {
+            "node": "Flatten open approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten log row": {
+      "main": [
+        [
+          {
+            "node": "Already handled this level? (keep In A only)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Already handled this level? (keep In A only)": {
+      "main": [
+        [
+          {
+            "node": "Open approval on this invoice? (keep In A only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten open approval": {
+      "main": [
+        [
+          {
+            "node": "Open approval on this invoice? (keep In A only)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Open approval on this invoice? (keep In A only)": {
+      "main": [
+        [
+          {
+            "node": "Email usable? (false = log and skip)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email usable? (false = log and skip)": {
+      "main": [
+        [
+          {
+            "node": "Remove duplicate claims",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log no-email skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove duplicate claims": {
+      "main": [
+        [
+          {
+            "node": "Cap per run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cap per run": {
+      "main": [
+        [
+          {
+            "node": "Claim reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim reminders": {
+      "main": [
+        [
+          {
+            "node": "Re-read log after claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read log after claim": {
+      "main": [
+        [
+          {
+            "node": "Pack log after claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pack log after claim": {
+      "main": [
+        [
+          {
+            "node": "Claimed invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claimed invoices": {
+      "main": [
+        [
+          {
+            "node": "Split claimed invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split claimed invoices": {
+      "main": [
+        [
+          {
+            "node": "Flatten claimed invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten claimed invoice": {
+      "main": [
+        [
+          {
+            "node": "Exactly one row for this level and it is ours? (false = skip)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exactly one row for this level and it is ours? (false = skip)": {
+      "main": [
+        [
+          {
+            "node": "Start approval run (W3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate claim skipped (counted)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start approval run (W3)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Mark start failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark start failure": {
+      "main": [
+        [
+          {
+            "node": "W3 could not be started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bad rows or duplicate claims seen? (true = alert)": {
+      "main": [
+        [
+          {
+            "node": "Source rows skipped or duplicate claims",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC",
+    "executionTimeout": 300,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "PLACEHOLDER_ERROR_ALERT_WORKFLOW_ID"
+  },
+  "tags": []
+}

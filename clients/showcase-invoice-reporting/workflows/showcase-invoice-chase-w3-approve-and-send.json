@@ -1,0 +1,1254 @@
+{
+  "name": "SHOWCASE | Invoice Chase | Execute Workflow → Approve and send one reminder | v1",
+  "active": false,
+  "nodes": [
+    {
+      "id": "4c7ce971-3e16-4f51-aedb-4cc75db9cf4b",
+      "name": "Sticky note: read me first",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -520
+      ],
+      "parameters": {
+        "width": 760,
+        "height": 560,
+        "content": "## SHOWCASE | Invoice Chase | Approve and send one reminder | v1 (W3 of 3, sub-workflow)\n**Purpose:** one run per overdue invoice. Re-checks the invoice, writes the reminder from a template (no AI), asks the owner by email (Approve / Decline), re-checks again after the answer, and only then sends the reminder to the TEST address.\n**Owner:** AI Ops Expert owner. **Trigger:** called by W2 (Execute Workflow Trigger). **Version:** v1. **Last change:** 2026-10-31. **n8n version built on:** PLACEHOLDER_N8N_VERSION_AND_EDITION (unknown). **Built INACTIVE. Synthetic data only.**\n**Rule:** the only connection into the customer \"Send reminder\" node comes from the branch that is pending AND approved AND still unpaid AND unchanged. The customer's email is never used as a recipient in this showcase.\n**AFTER IMPORT (owner):** (1) Import this workflow FIRST (W2 needs its ID). It must import with no errors. (2) Settings > Error Workflow = `SHARED | Error Alert | Error Trigger → Slack alert | v1` (file holds PLACEHOLDER_ERROR_ALERT_WORKFLOW_ID). (3) Timezone: file holds UTC as a safe default; set PLACEHOLDER_TIMEZONE. (4) Settings > \"This workflow can be called by\": restrict to W2 once W2 exists (wording: verify on import). (5) Do NOT set a Timeout Workflow here (may cancel waiting approvals). (6) Fill the PLACEHOLDER_ values in the Settings node. (7) On \"Ask owner to approve\" set Limit Wait Time = approval_wait_hours if the option exists (Gmail docs do not list it: verify). (8) Do not forward the approval email: each run has its own resume link.\n**Verify on import:** every typeVersion and each node marked in its notes (design sections 9 and 17)."
+      }
+    },
+    {
+      "id": "0d1e9321-e2fd-4571-a621-57c4d14ccb65",
+      "name": "Start from daily scan",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "invoice_no"
+            },
+            {
+              "name": "tier"
+            },
+            {
+              "name": "log_key"
+            }
+          ]
+        }
+      },
+      "notes": "Inputs: invoice_no, tier, log_key. No amounts, names or emails are passed: W3 re-reads the invoice. Verify on import: Execute Workflow Trigger typeVersion 1.1 and the \"Define using fields below\" structure."
+    },
+    {
+      "id": "96e1f360-12f6-4f1c-a712-6280324e0d9b",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "spreadsheet_id",
+              "value": "PLACEHOLDER_SPREADSHEET_ID",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "tab_invoices",
+              "value": "invoices",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "tab_reminder_log",
+              "value": "reminder_log",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "t1_max",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "a5",
+              "name": "t2_max",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "a6",
+              "name": "approval_wait_hours",
+              "value": 48,
+              "type": "number"
+            },
+            {
+              "id": "a7",
+              "name": "owner_email",
+              "value": "PLACEHOLDER_OWNER_EMAIL",
+              "type": "string"
+            },
+            {
+              "id": "a8",
+              "name": "demo_recipient",
+              "value": "PLACEHOLDER_DEMO_RECIPIENT",
+              "type": "string"
+            },
+            {
+              "id": "a9",
+              "name": "save_draft_on_decline",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "a10",
+              "name": "subject_t1",
+              "value": "Friendly reminder: invoice [invoice_no]",
+              "type": "string"
+            },
+            {
+              "id": "a11",
+              "name": "body_t1",
+              "value": "Hello [customer_name],\n\nThis is a friendly reminder that invoice [invoice_no] for [balance] [currency] was due on [due_date] and is now [days_past_due] day(s) past due.\n\nIf you have already paid, thank you, and please ignore this message.\n\nKind regards\nPLACEHOLDER_SENDER_NAME",
+              "type": "string"
+            },
+            {
+              "id": "a12",
+              "name": "subject_t2",
+              "value": "Payment overdue: invoice [invoice_no]",
+              "type": "string"
+            },
+            {
+              "id": "a13",
+              "name": "body_t2",
+              "value": "Hello [customer_name],\n\nInvoice [invoice_no] for [balance] [currency] was due on [due_date] and is now [days_past_due] days past due. Please arrange payment this week or contact us if there is a problem.\n\nKind regards\nPLACEHOLDER_SENDER_NAME",
+              "type": "string"
+            },
+            {
+              "id": "a14",
+              "name": "subject_t3",
+              "value": "Final notice: invoice [invoice_no]",
+              "type": "string"
+            },
+            {
+              "id": "a15",
+              "name": "body_t3",
+              "value": "Hello [customer_name],\n\nThis is a final notice. Invoice [invoice_no] for [balance] [currency] was due on [due_date] and is now [days_past_due] days past due. Please pay immediately or contact us today to agree a plan.\n\nKind regards\nPLACEHOLDER_SENDER_NAME",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "demo_recipient is the owner's own test address: the customer email is never used. There is no demo on/off switch. Templates are plain text with [placeholders]; no AI writes customer text. Replace every PLACEHOLDER_ value. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "a224c923-86f6-4c5d-a651-fd9b0883dd0b",
+      "name": "Fetch invoice now",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_invoices }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "invoice_no",
+              "lookupValue": "={{ $('Start from daily scan').first().json.invoice_no }}"
+            }
+          ]
+        },
+        "combineFilters": "AND",
+        "options": {
+          "returnAllMatches": "returnAllMatches",
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Fresh source of truth (payment re-check 1 follows). Always Output Data on: a missing invoice gives one blank item. Verify on import: that option is a node Settings toggle; unformatted values option. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "012627fd-2d49-4679-a936-3dea0f82b33e",
+      "name": "Check invoice now",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const st = $('Start from daily scan').first().json;\n  const r = $json;\n  const t = (v) => String(v ?? '').trim();\n  const found = t(r.invoice_no) !== '' && t(r.invoice_no) === t(st.invoice_no);\n  const dueOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(t(r.due_date)) && DateTime.fromISO(t(r.due_date), { zone: 'utc' }).isValid;\n  const balOk = /^-?\\d+(\\.\\d{1,2})?$/.test(t(r.balance));\n  const bal = balOk ? Math.round(Number(t(r.balance)) * 100) : 0;\n  const days = dueOk ? Math.round(DateTime.fromISO($now.toFormat('yyyy-LL-dd'), { zone: 'utc' }).diff(DateTime.fromISO(t(r.due_date), { zone: 'utc' }), 'days').days) : null;\n  const tier = days === null ? 'none' : (days < 1 ? 'not_overdue' : (days <= Number(S.t1_max) ? 't1' : (days <= Number(S.t2_max) ? 't2' : 't3')));\n  const status = t(r.status).toLowerCase();\n  const collectable = found && dueOk && balOk && t(r.doc_type).toLowerCase() === 'invoice' && status === 'open' && bal > 0;\n  return {\n    found: found, collectable: collectable, current_tier: tier, balance_minor: bal, days_past_due: days,\n    stop_status: (found && (status === 'paid' || (balOk && bal <= 0))) ? 'stopped_paid' : 'stopped_changed',\n    invoice_no: t(r.invoice_no), customer_name: t(r.customer_name).replace(/\\s+/g, ' '), currency: t(r.currency).toUpperCase(), due_date: t(r.due_date)\n  };\n})()) }}",
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Is the invoice still a real open invoice with a balance, and is its current tier the one W2 started? Money in whole minor units. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "3ee7bc7b-a180-4df4-a8d6-2286d644f4e2",
+      "name": "Still collectable and same tier? (false = stop)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.collectable === true && $json.current_tier === $('Start from daily scan').first().json.tier }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "PAYMENT RE-CHECK 1. TRUE = go on. FALSE = log the stop and end. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "da6537ce-0064-41c4-a62b-429916f6862c",
+      "name": "Log stop before asking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        360
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $('Start from daily scan').first().json.log_key }}",
+            "status": "={{ $('Check invoice now').first().json.stop_status }}",
+            "decided_at": "={{ $now.toISO() }}",
+            "approver_decision": "not_asked"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Ends the run for this invoice. Update Row matches the claim row on log_key; verify what happens if two rows share the key (first match only). Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "0f646a04-4746-40e6-a6ca-aa664c53cef1",
+      "name": "Write reminder from template",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "reminder_to",
+              "value": "={{ $('Settings').first().json.demo_recipient }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "reminder_subject",
+              "value": "={{ (() => { const ck = $('Check invoice now').first().json; const S = $('Settings').first().json; return String(S['subject_' + $('Start from daily scan').first().json.tier]).replaceAll('[invoice_no]', ck.invoice_no); })() }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "reminder_body",
+              "value": "={{ (() => { const ck = $('Check invoice now').first().json; const S = $('Settings').first().json; const tier = $('Start from daily scan').first().json.tier; return String(S['body_' + tier]).replaceAll('[customer_name]', ck.customer_name).replaceAll('[invoice_no]', ck.invoice_no).replaceAll('[balance]', (ck.balance_minor / 100).toFixed(2)).replaceAll('[currency]', ck.currency).replaceAll('[due_date]', ck.due_date).replaceAll('[days_past_due]', String(ck.days_past_due)); })() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Template text only, NO AI. Shows the remaining BALANCE (so partial payments show what is still owed), not the invoice amount. Plain text only. Recipient = demo_recipient, never the customer email. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "075d3698-3b67-476a-ad44-6b9ef2910416",
+      "name": "Record what the owner is shown",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1560,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $('Start from daily scan').first().json.log_key }}",
+            "balance_shown": "={{ $('Check invoice now').first().json.balance_minor / 100 }}"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Stores the balance the owner is about to see, so the final check does not depend on data surviving the wait. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "a48a134b-f8d3-485f-ac4e-31be440f4292",
+      "name": "Ask owner to approve",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1820,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendAndWait",
+        "sendTo": "={{ $('Settings').first().json.owner_email }}",
+        "subject": "={{ 'Approve reminder for invoice ' + $('Start from daily scan').first().json.invoice_no }}",
+        "message": "={{ (() => { const nl = String.fromCharCode(10); const ck = $('Check invoice now').first().json; const w = $('Write reminder from template').first().json; return 'Send this reminder? (Do not forward this email.)' + nl + nl + 'Invoice: ' + ck.invoice_no + nl + 'Balance still owed: ' + (ck.balance_minor / 100).toFixed(2) + ' ' + ck.currency + nl + 'Days past due: ' + ck.days_past_due + nl + 'Level: ' + $('Start from daily scan').first().json.tier + nl + 'It would be sent to the TEST address: ' + w.reminder_to + nl + nl + 'Subject: ' + w.reminder_subject + nl + nl + w.reminder_body; })() }}",
+        "responseType": "approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "disapproveLabel": "Decline"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Gmail \"Send a message and wait for approval\", Approve and Disapprove (\"Decline\"). Sent to the OWNER. Retry 2 may rarely put two approval emails in the inbox: harmless, the log row is re-checked after the answer. On final failure the log row stays pending and is swept later. Verify on import: sendAndWait parameter names (responseType, approvalOptions), typeVersion 2.1, whether Limit Wait Time exists (set it to approval_wait_hours, expression allowed?), the output field name (expected data.approved), how Decline differs from timeout, and T42 (previewing the email must not count as Approve)."
+    },
+    {
+      "id": "6b7c9ef3-f472-4120-a2d8-9a10cffaca1c",
+      "name": "Re-read log row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2080,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "log_key",
+              "lookupValue": "={{ $('Start from daily scan').first().json.log_key }}"
+            }
+          ]
+        },
+        "combineFilters": "AND",
+        "options": {
+          "returnAllMatches": "returnAllMatches",
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Runs for every answer (approve, decline, timeout). Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "5b48b3d1-a3b8-4b3a-a701-55ac0a28cd99",
+      "name": "Re-read invoice",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2340,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_invoices }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "invoice_no",
+              "lookupValue": "={{ $('Start from daily scan').first().json.invoice_no }}"
+            }
+          ]
+        },
+        "combineFilters": "AND",
+        "options": {
+          "returnAllMatches": "returnAllMatches",
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true,
+      "notes": "Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "339018c7-4296-43a3-ab75-5043259e7589",
+      "name": "Check invoice again",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2600,
+        0
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify((() => {\n  const S = $('Settings').first().json;\n  const st = $('Start from daily scan').first().json;\n  const r = $json;\n  const t = (v) => String(v ?? '').trim();\n  const found = t(r.invoice_no) !== '' && t(r.invoice_no) === t(st.invoice_no);\n  const dueOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(t(r.due_date)) && DateTime.fromISO(t(r.due_date), { zone: 'utc' }).isValid;\n  const balOk = /^-?\\d+(\\.\\d{1,2})?$/.test(t(r.balance));\n  const bal = balOk ? Math.round(Number(t(r.balance)) * 100) : 0;\n  const days = dueOk ? Math.round(DateTime.fromISO($now.toFormat('yyyy-LL-dd'), { zone: 'utc' }).diff(DateTime.fromISO(t(r.due_date), { zone: 'utc' }), 'days').days) : null;\n  const tier = days === null ? 'none' : (days < 1 ? 'not_overdue' : (days <= Number(S.t1_max) ? 't1' : (days <= Number(S.t2_max) ? 't2' : 't3')));\n  const status = t(r.status).toLowerCase();\n  const collectable = found && dueOk && balOk && t(r.doc_type).toLowerCase() === 'invoice' && status === 'open' && bal > 0;\n  return {\n    found: found, collectable: collectable, current_tier: tier, balance_minor: bal, days_past_due: days,\n    stop_status: (found && (status === 'paid' || (balOk && bal <= 0))) ? 'stopped_paid' : 'stopped_changed',\n    invoice_no: t(r.invoice_no), customer_name: t(r.customer_name).replace(/\\s+/g, ' '), currency: t(r.currency).toUpperCase(), due_date: t(r.due_date)\n  };\n})()) }}",
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Same check as before the question, on the fresh re-read. Verify on import: Edit Fields JSON output mode. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "9730c312-2780-4274-a3fc-298ef56fe49c",
+      "name": "Still pending and not expired? (false = end, no write)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ (() => { const r = $('Re-read log row').first().json; const S = $('Settings').first().json; const cut = $now.minus({ hours: Number(S.approval_wait_hours) + 2 }); const at = DateTime.fromISO(String(r.claimed_at ?? '')); return String(r.status ?? '').trim() === 'pending' && at.isValid && !(at < cut); })() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "EXPIRY GUARD. TRUE = open. FALSE = closed (already timed_out by the sweep, or anything else): end with NO write, so a late Decline can never overwrite timed_out and a late Approve sends nothing. Same cut-off as the W2 sweep (wait hours + 2). Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "bdbe7672-f583-4817-abcb-cb70f2fbade0",
+      "name": "End: closed, nothing written",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        360
+      ],
+      "parameters": {},
+      "notes": "Late or already-closed response ignored. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "d0413109-83d4-40de-a11b-0bbf2e7c0e03",
+      "name": "Approved? (false = declined or no answer)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ (($('Ask owner to approve').first().json.data?.approved) ?? ($('Ask owner to approve').first().json.approved)) === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Only an explicit true allows sending; declined, timeout, missing or garbled all take the FALSE branch. Verify on import: the real output field name of the approval node. Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "f9e14601-06d2-4eb9-a9f5-277ba84598f1",
+      "name": "Log not approved",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3120,
+        360
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $('Start from daily scan').first().json.log_key }}",
+            "status": "declined",
+            "approver_decision": "declined_or_no_answer",
+            "decided_at": "={{ $now.toISO() }}",
+            "note": "declined_or_timeout"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Only reached when the row was still pending. If the approval node output can tell Decline from timeout, set timed_out for a timeout (verify on import); otherwise declined with note declined_or_timeout. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "129ed311-6b49-4501-aac7-b84842e7012c",
+      "name": "Save a draft? (true = yes)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        360
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Settings').first().json.save_draft_on_decline === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "929b0d6c-3278-47ed-a288-f346c90ec824",
+      "name": "Create decline draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3640,
+        360
+      ],
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "={{ $('Write reminder from template').first().json.reminder_subject }}",
+        "message": "={{ '(Draft only, not sent. Intended recipient: ' + $('Settings').first().json.demo_recipient + ')' + String.fromCharCode(10) + String.fromCharCode(10) + $('Write reminder from template').first().json.reminder_body }}",
+        "emailType": "text",
+        "options": {
+          "sendTo": "={{ $('Settings').first().json.demo_recipient }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "notes": "Separate node from the approval node (the approval node cannot make drafts). Lets the owner edit and send by hand. The draft body states the intended test address. Verify on import: Create a draft parameter names, and whether the recipient can be set (options.sendTo); if not, remove it and keep the body line. If this fails the run ends anyway (log already written)."
+    },
+    {
+      "id": "6d4409dd-ab7b-43f2-aabb-1bf8d74e767a",
+      "name": "Still unpaid and unchanged? (false = stop)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ (() => { const ck = $('Check invoice again').first().json; const lr = $('Re-read log row').first().json; const shown = String(lr.balance_shown ?? '').trim(); const shownMinor = /^-?\\d+(\\.\\d{1,2})?$/.test(shown) ? Math.round(Number(shown) * 100) : null; return ck.collectable === true && shownMinor !== null && ck.balance_minor === shownMinor && ck.current_tier === $('Start from daily scan').first().json.tier; })() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "notes": "PAYMENT RE-CHECK 2, immediately before the send: still a collectable invoice AND balance equals the balance the owner was shown AND tier unchanged. A partial payment or tier move during the wait means the approved text is stale. If balance_shown is missing, it stops (safe). Output 1 (true) and output 2 (false) are described in the node name/notes. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "0a428346-cdc0-4318-a3fa-9f7da061c435",
+      "name": "Log late stop",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3380,
+        720
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $('Start from daily scan').first().json.log_key }}",
+            "status": "={{ $('Check invoice again').first().json.collectable ? 'stopped_changed' : $('Check invoice again').first().json.stop_status }}",
+            "approver_decision": "approved_but_stopped",
+            "decided_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "stopped_paid if the invoice is no longer collectable because it was paid; stopped_changed if the balance or tier moved. Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "a8456769-d649-48d0-a9a6-a667acc6c1be",
+      "name": "Send reminder to test address",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3640,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Write reminder from template').first().json.reminder_to }}",
+        "subject": "={{ $('Write reminder from template').first().json.reminder_subject }}",
+        "emailType": "text",
+        "message": "={{ $('Write reminder from template').first().json.reminder_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": false,
+      "onError": "continueErrorOutput",
+      "notes": "CUSTOMER-FACING SEND (to the owner's test address in this showcase). NO retry (a retry after a timeout could send twice). Only reachable from \"Still unpaid and unchanged?\" TRUE. Error output goes to \"Log send failure\". Verify on import: Gmail typeVersion 2.1."
+    },
+    {
+      "id": "ffd608d9-5c1e-4c07-a31c-01147d147456",
+      "name": "Log send failure",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3900,
+        360
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $('Start from daily scan').first().json.log_key }}",
+            "status": "send_failed",
+            "note": "send_failed",
+            "decided_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    },
+    {
+      "id": "c3e25bc5-a772-4d66-a113-99626ef8583a",
+      "name": "Reminder send failed",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        360
+      ],
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "Reminder send failed, see reminder_log"
+      },
+      "notes": "No customer names in the message. Verify on import: typeVersion is a builder assumption (n8n version UNKNOWN); take the version from the node panel on your instance."
+    },
+    {
+      "id": "e1fcb6eb-a032-44f4-a4d8-44432dfdcaad",
+      "name": "Log sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3900,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.spreadsheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.tab_reminder_log }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_key": "={{ $('Start from daily scan').first().json.log_key }}",
+            "status": "sent",
+            "approver_decision": "approved",
+            "decided_at": "={{ $now.toISO() }}",
+            "sent_at": "={{ $now.toISO() }}",
+            "child_execution_id": "={{ String($execution.id) }}"
+          },
+          "matchingColumns": [
+            "log_key"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets - AI Ops Expert showcase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "stopWorkflow",
+      "notes": "Verify on import: Google Sheets typeVersion 4.7, operation names, the unformatted-values option, \"raw\" write option, and that \"update\" can match on log_key. Lock the header row of every tab first; re-select the column mapping if the node shows a schema warning."
+    }
+  ],
+  "connections": {
+    "Fetch invoice now": {
+      "main": [
+        [
+          {
+            "node": "Check invoice now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check invoice now": {
+      "main": [
+        [
+          {
+            "node": "Still collectable and same tier? (false = stop)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still collectable and same tier? (false = stop)": {
+      "main": [
+        [
+          {
+            "node": "Write reminder from template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log stop before asking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start from daily scan": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Fetch invoice now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write reminder from template": {
+      "main": [
+        [
+          {
+            "node": "Record what the owner is shown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record what the owner is shown": {
+      "main": [
+        [
+          {
+            "node": "Ask owner to approve",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask owner to approve": {
+      "main": [
+        [
+          {
+            "node": "Re-read log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read log row": {
+      "main": [
+        [
+          {
+            "node": "Re-read invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-read invoice": {
+      "main": [
+        [
+          {
+            "node": "Check invoice again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check invoice again": {
+      "main": [
+        [
+          {
+            "node": "Still pending and not expired? (false = end, no write)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still pending and not expired? (false = end, no write)": {
+      "main": [
+        [
+          {
+            "node": "Approved? (false = declined or no answer)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "End: closed, nothing written",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved? (false = declined or no answer)": {
+      "main": [
+        [
+          {
+            "node": "Still unpaid and unchanged? (false = stop)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log not approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log not approved": {
+      "main": [
+        [
+          {
+            "node": "Save a draft? (true = yes)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save a draft? (true = yes)": {
+      "main": [
+        [
+          {
+            "node": "Create decline draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still unpaid and unchanged? (false = stop)": {
+      "main": [
+        [
+          {
+            "node": "Send reminder to test address",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log late stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder to test address": {
+      "main": [
+        [
+          {
+            "node": "Log sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log send failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log send failure": {
+      "main": [
+        [
+          {
+            "node": "Reminder send failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false,
+    "errorWorkflow": "PLACEHOLDER_ERROR_ALERT_WORKFLOW_ID"
+  },
+  "tags": []
+}
