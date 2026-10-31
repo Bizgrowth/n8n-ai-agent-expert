@@ -1,0 +1,2 @@
+report_key,week_start,week_end,currency,sales_total,sales_count,prior_sales_total,change_abs,change_pct,open_balance,overdue_balance,overdue_count,ageing_not_due,ageing_1_7,ageing_8_30,ageing_31_plus,overdue_no_email_count,control_status,commentary_status,generated_at,execution_id
+

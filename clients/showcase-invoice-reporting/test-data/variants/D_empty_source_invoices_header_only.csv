@@ -1,0 +1,2 @@
+invoice_no,doc_type,customer_name,customer_email,issue_date,due_date,currency,amount,amount_paid,balance,status,paid_date
+

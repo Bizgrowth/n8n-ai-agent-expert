@@ -600,7 +600,7 @@
       "typeVersion": 3.4,
       "position": [
         1820,
-        1000
+        -900
       ],
       "parameters": {
         "mode": "manual",
@@ -628,7 +628,7 @@
       "typeVersion": 1,
       "position": [
         2080,
-        1000
+        -900
       ],
       "parameters": {
         "fieldToSplitOut": "rows",
@@ -648,7 +648,7 @@
       "typeVersion": 3.4,
       "position": [
         2340,
-        1000
+        -900
       ],
       "parameters": {
         "mode": "manual",
@@ -676,7 +676,7 @@
       "typeVersion": 3.4,
       "position": [
         1820,
-        1400
+        -500
       ],
       "parameters": {
         "mode": "manual",
@@ -704,7 +704,7 @@
       "typeVersion": 1,
       "position": [
         2080,
-        1400
+        -500
       ],
       "parameters": {
         "fieldToSplitOut": "rows",
@@ -724,7 +724,7 @@
       "typeVersion": 3.4,
       "position": [
         2340,
-        1400
+        -500
       ],
       "parameters": {
         "mode": "manual",
@@ -1404,32 +1404,6 @@
         ]
       ]
     },
-    "Pack reminder log": {
-      "main": [
-        [
-          {
-            "node": "Gather invoices",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Stale pending rows",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log rows list",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Open approvals list",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Gather invoices": {
       "main": [
         [
@@ -1513,6 +1487,32 @@
         [
           {
             "node": "Not overdue (no action)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pack reminder log": {
+      "main": [
+        [
+          {
+            "node": "Gather invoices",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stale pending rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log rows list",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Open approvals list",
             "type": "main",
             "index": 0
           }

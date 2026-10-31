@@ -1,0 +1,2 @@
+log_key,invoice_no,tier,status,approver_decision,days_past_due_at_claim,currency,balance_at_claim,balance_shown,claimed_at,decided_at,sent_at,scan_execution_id,child_execution_id,note
+

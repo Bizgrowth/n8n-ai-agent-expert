@@ -1,0 +1,3 @@
+report_key,week_start,week_end,currency,sales_total,sales_count,prior_sales_total,change_abs,change_pct,open_balance,overdue_balance,overdue_count,ageing_not_due,ageing_1_7,ageing_8_30,ageing_31_plus,overdue_no_email_count,control_status,commentary_status,generated_at,execution_id
+2026-10-19|USD,2026-10-19,2026-10-25,USD,1000.00,10,900.00,100.00,11.1,9000.00,4000.00,8,5000.00,1000.00,1500.00,1500.00,1,matched,off,2026-10-26T07:00:00+00:00,SEED
+2026-10-19|EUR,2026-10-19,2026-10-25,EUR,0.00,0,0.00,0.00,n/a,1000.00,500.00,1,500.00,0.00,500.00,0.00,0,matched,off,2026-10-26T07:00:00+00:00,SEED
