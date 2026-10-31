@@ -8,7 +8,7 @@ This repo is the n8n sibling of `make-ai-agent-expert`. Same gates, same standar
 1. **Never activate a workflow.** Build inactive. Only the owner activates, after sign-off. Never use publish/activate/toggle-active tools or API calls.
 2. **Always know the client and the target.** Before any n8n action, know which client it is for and which n8n instance/project (or Sandbox/Showcase). Ask only when the owner's request does not already say. Never build against an instance or project you have not confirmed.
 3. **Never handle secrets in chat or in the repo.** The owner creates credentials inside n8n. Workflows reference credentials by name only. Never ask for, store or commit passwords, API keys, tokens or `.env` files.
-4. **Where client work happens.** Owner decision (2026-10-17): the agent connects to the owner's own n8n over plain HTTP. All client work is built and tested on the owner's instance; the owner copies the finished workflow into the client's environment. No client system is ever connected to the agent. The owner has accepted the HTTP and token risk: do not re-raise it. See `docs/n8n-access-best-practice.md`.
+4. **Where client work happens.** Owner decision (2026-10-17): the agent connects to the owner's own n8n over plain HTTP. All client work is built and tested on the owner's instance; the owner copies the finished workflow into the client's environment. No client system is ever connected to the agent. The owner has accepted the HTTP and token risk and reaffirmed it on 2026-10-31 after being told HTTPS is the recommended practice: keep HTTP, do not re-raise it unless the owner asks. See `docs/n8n-access-best-practice.md`.
 5. **Standard before speed.** Every build follows `playbooks/n8n-best-practices.md` and (for any LLM step) `playbooks/ai-guardrails.md`.
 6. **Separate builder from tester.** The agent that builds does not sign off its own tests.
 7. **No invented facts.** If an n8n node, parameter, node version or limit is uncertain, check it against the instance's own node output or `docs.n8n.io` before using it. Node parameters differ between n8n versions.
@@ -19,6 +19,11 @@ This repo is the n8n sibling of `make-ai-agent-expert`. Same gates, same standar
 - **Optional direct push.** If an n8n MCP server or API connection is enabled in the session, the builder may create the workflow as inactive. See `docs/connect-n8n.md` for the one-time setup.
 - **Lint before review.** Run `node scripts/lint-workflow.mjs <file.json>` on every workflow. A failed **[must]** blocks Gate 2.
 - **Strip test data.** Remove `pinData` and any real customer data before saving a workflow into the repo.
+
+## Git branches
+- `main` is the base. Start new work from the latest `main`; if a session branch has already been merged, restart it from `main` before adding commits.
+- Push with fast-forward only. Never force-push, and never delete a branch, without the owner saying so. Check that a branch is fully contained in `main` before suggesting it be deleted.
+- Never open a pull request unless the owner asks.
 
 ## Workflow (every gig)
 | Stage | Sub-agent | Output | Owner gate |
@@ -43,7 +48,7 @@ Every trigger, connection, application, data and AI step in a design is covered 
 | `n8n-data-expert` | Items, expressions, Data tables, Variables, validation |
 | `n8n-ops-expert` | Executions, Insights, error workflows, retries, evidence, logging |
 | `n8n-admin-expert` | Settings, users and roles, API and MCP access, plans, versions |
-The architect consults the matching specialist for each step and cites the card. The builder does not build a step that has no card. Specialists are advisory and read-only. The area-by-area reference is `docs/n8n-app-map.md`; gaps in it are closed from docs or a read-only probe and written back.
+The architect consults the matching specialist for each step and cites the card. If the architect cannot start the specialists, the orchestrator runs a specialist review pass over the cards before the owner approves the design (done for SHOW-002; the reviews are saved in `step-cards/reviews/`). The builder does not build a step that has no card. Specialists are advisory and read-only. The area-by-area reference is `docs/n8n-app-map.md`; gaps in it are closed from docs or a read-only probe and written back.
 
 ## Scope of work
 Lead gen / CRM / sales ops, AI/LLM workflows, back-office ops, e-commerce / support. Pattern libraries live in `playbooks/patterns/`.
