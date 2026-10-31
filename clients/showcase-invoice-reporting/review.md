@@ -179,3 +179,63 @@ All `typeVersion`s are unverified (build log section 7), so the first import may
 **Next step:** the builder may apply M1 to M3 and L1, L2, L5 in one short pass and re-lint (a quick re-review of those nodes is enough). Then the tester (not the builder) runs design section 14 with the notes in section 8. Nothing was activated; the owner activates only after sign-off.
 
 **Verdict: APPROVE FOR QA**
+
+---
+
+# Re-review after fix pass (2026-10-31)
+
+**Reviewer:** best-practice-reviewer (did not build the fix pass). **Scope:** M1, M2, M3, L1, L2, L5 and the safety invariants. Everything below was checked in the three JSON files (connections and expressions), not taken from `build-log.md` section 14. Nothing was modified, imported, activated or pushed. L3, L4, L6, L7, L8 were deliberately left open by the builder and are unchanged; they stay as QA or owner notes.
+
+## Verdict: APPROVE FOR QA
+
+All six fixes are in the files and work as intended. No must-fix and no safety problem. Three new low findings (N1 to N3) are QA checks or optional polish; none blocks QA.
+
+**Plain-language summary:** A week that failed halfway can now be re-run after 30 minutes (or at once if it failed for "no source rows"), and a week that is really still running or already emailed stays blocked. The daily scan's "some rows were bad" alert now waits until the approval requests have been started, so one bad row can no longer block the day's approvals. A duplicated invoice row now stops the reminder instead of doubling it. Customer names can no longer break the reminder text or put a link into your approval email. The reminder still can only reach your test address, and only through your Approve click.
+
+## 1. Lint
+
+| File | Result |
+|---|---|
+| W1 | OK, 0 must-fix, 0 warnings |
+| W2 | OK, 0 must-fix, 0 warnings |
+| W3 | OK, 0 must-fix, 1 warning (workflow timeout, deliberate, unchanged) |
+
+All three: `active: false`, no `pinData`, credentials by name only (4 names), no key or token values (the one word "token" in W1 is inside a note about auth type). Node counts W1 91, W2 44, W3 28. Lint still cannot see logic; the rest is by reading the graph.
+
+## 2. Per finding
+
+| Finding | Result | Evidence |
+|---|---|---|
+| **M1** stale running rule + Mark run failed | **PASS** | "Already running or sent?" is true if any row is `sending` or `sent` (permanent), or `running` with `started_at` under 30 minutes old, or `running` with an unreadable `started_at` (blocks, safe). Anything else (`failed`, `blocked_mismatch`, old `running`) goes to "Claim this week". W1 has a 300 second timeout, so a `running` row older than 30 minutes cannot belong to a live run: a genuinely running week stays blocked, and `sending`/`sent` can never be reclaimed. The lookup and the claim use `run_key = week_start`; duplicate rows now use a different key (L2), so a re-claim updates the one row and "Exactly one claim and it is ours?" (exactly one row in running/sending/sent whose `execution_id` is this run) still holds. "Mark run failed (no source rows)" is an Update on `run_key = week_start`, wired only from output 0 of "Source empty?" (after the claim was confirmed ours) to "Source returned no rows"; it is on continue-on-error, so a failed write cannot hide the stop, and the 30 minute rule covers it. It is correctly not on the duplicate-claim path (that row belongs to someone else). |
+| **M2** W2 end alert | **PASS, with a known gap (N1)** | "Bad rows or duplicate claims seen?" now has exactly two inbound connections: output 0 of "Start approval run (W3)" and "Duplicate claim skipped (counted)". It no longer connects from "Check invoice row". Its test reads the claim check's two outputs, which are complete before either feeder runs, and is true only when `Start approval run (W3)` has executed (or no row passed the claim check) AND bad rows or duplicate claims exist. If the duplicate branch happens to run first, the test is false and the IF is called again when the W3 start finishes, so the order no longer matters. Worst case with bad rows: all approval runs are started, then the execution ends in Error. If every W3 start fails, "Mark start failure" and "W3 could not be started" alert instead. |
+| **M3** Limit 1 and exactly-one checks, W3 | **PASS (invoice), partial (log row, see N2)** | Wiring: Fetch invoice now -> Keep one invoice row (now) -> Check invoice now; Re-read log row -> Keep one log row -> Re-read invoice -> Keep one invoice row (again) -> Check invoice again. Both checks count rows from the sheet node itself (`$('Fetch invoice now').all()`, `$('Re-read invoice').all()`, rows with an invoice number), not from the Limit, and set `found = false` unless the count is exactly 1. `collectable` requires `found`. So a duplicate row before asking ends in "Log stop before asking" (no approval email), and a duplicate that appears while waiting fails "Still unpaid and unchanged?" and goes to "Log late stop" (no send). The three read nodes have Always Output Data on, so zero rows gives an empty item, `found = false`, and a safe stop. |
+| **L1** escaping and replacer | **PASS** | "Write reminder from template" fills subject and body with one `replace(/\[(...)\]/g, (m, k) => map[k])` pass. A function replacer means `$&`, `` $` `` and `$'` are inserted as plain text, and a name that itself contains `[invoice_no]` is not substituted again. "Ask owner to approve" HTML-escapes the entire text (`& < > " '`) including the customer name; the real reminder is plain text (`emailType: text`), so it is not escaped and "Smith & Sons" stays correct there. The builder's stub test agrees with what the code does. One thing only QA can prove: that Gmail's approval page shows the escaped text as intended and does not double-escape (N3). |
+| **L2** run_key | **PASS** | "Log duplicate run" writes `week_start|dup|<execution id>` (append, no matching column). Nothing looks up or updates by that key, and the claim lookup filters on exactly `week_start`. |
+| **L5** guards | **PASS** | `?? []` present in "Gather invoices", "Stale pending rows", "Log rows list", "Open approvals list". One unguarded read remains (`Pack log after claim`.logrows in the claim check) but that tab always contains at least our own claim row, and a failure there is loud and safe. |
+| **T32 invariant** | **PASS** | W3 "Send reminder to test address" has exactly one inbound connection: output 0 of "Still unpaid and unchanged?". The path is a single chain (trigger -> Settings -> Fetch -> Keep one -> Check -> Still collectable (out 0) -> Write reminder -> Record what the owner is shown -> Ask owner to approve -> Re-read log -> Keep one -> Re-read invoice -> Keep one -> Check again -> Still pending (out 0) -> Approved? (out 0) -> Still unpaid and unchanged? (out 0) -> Send), so removing any of the three gates cuts it. The new Limit nodes sit only upstream of the gates and add no path. `customer_email` does not appear anywhere in W3. Gmail recipients: approval = `owner_email`, send and decline draft = `demo_recipient`. W2 has no Gmail or Slack node and starts W3 only from output 0 of its claim check. |
+
+## 3. New findings
+
+### N1 [LOW-MEDIUM] W2 alert still silent on some days; depends on one unverified behaviour
+The builder already flagged the first part. What produces **no alert** (the run ends green) when there are bad source rows or duplicates but nothing reaches the claim check, or when the W3 start emits nothing:
+- no invoice is overdue ("Not overdue (no action)"), or all overdue invoices were filtered out;
+- every overdue invoice is already handled at its level ("Already handled this level?") or has an open approval ("Open approval on this invoice?");
+- invoices with no usable e-mail ("Log no-email skip": logged to the sheet, but no alert);
+- invoices dropped by "Remove duplicate claims" or beyond the daily cap ("Cap per run");
+- no valid rows at all after "Keep valid rows";
+- the claim step returns nothing.
+Also, the alert fires after the approvals only if "Start approval run (W3)" output 0 emits items while "Wait for sub-workflow" is off. That is unverified on this n8n version. If it emits nothing, the alert fires only when some claim was a duplicate.
+- **Impact:** a bad source row can be missed on a quiet day. Nothing unsafe is sent; the bad row is still excluded.
+- **Fix (optional, later pass):** also feed the same IF from "Not overdue (no action)", the false output of "Email usable?", and the end of the "Keep valid rows" empty case, with `executeOnce`; or accept it and tell the owner in the handoff.
+- **QA:** T27 as the builder wrote it (one bad row plus several eligible invoices: all approvals exist, then Error) proves the W3 start output. Add a day with one bad row and nothing overdue and record that it ends green by design (or that it alerts, if the owner chooses the fix).
+
+### N2 [LOW] W3 has no "exactly one" check on the log row
+The invoice rows are now checked by count; the reminder-log row is only cut to the first one by "Keep one log row". If a duplicate log row for the same `log_key` appeared, "Still pending and not expired?" would judge the first row only, and "Log sent" or "Log not approved" would update by `log_key`. It cannot cause a second send (one item, one send), only a wrong log or a send decided by an old row. W2 already confirms exactly one log row at claim time, so this needs a manual edit to happen.
+- **Fix (optional):** in the "Still pending and not expired?" test also require `$('Re-read log row').all().filter(r => r.json.log_key).length === 1`.
+
+### N3 [LOW] Approval page rendering of the escaped text
+The whole approval message is escaped, so any literal `&amp;` or similar would show wrongly if Gmail's approval page already escapes it, and line breaks may collapse. Unverified on this version. **QA:** T29/T41 should include a name with `&`, one with `<a href=...>` and one with `$&`, and look at the approval page and the real reminder. If the approval page shows `&amp;` literally, drop the escape for `&` only or escape the name only.
+
+## 4. Verdict
+
+**APPROVE FOR QA.** The fixes are structurally sound, the T32 invariant holds, all three workflows are inactive with no test data or secrets. N1 to N3 do not need a builder pass; they go into the test plan. Still open for QA and the owner (unchanged): Error Workflow placeholder on all three (tick it first), L3 validator gaps and model-node retries, L4 `approval_wait_hours` in two places, L8 control CSVs and frozen test date, and the import-time checks (typeVersions, W3 workflow ID, Gmail wait limit, Update Row matching one row).
