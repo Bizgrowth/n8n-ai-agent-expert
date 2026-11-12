@@ -61,3 +61,13 @@ Stable hooks in the page:
 
 ## Voice
 The skill `video-voice-sync` generates narration in the cloned ElevenLabs voice and retimes scenes to the real audio. Run it after the scenes exist, then adjust scene lengths to the audio.
+
+## Built version (no kit needed)
+A captioned 30-second MP4 (1920 x 1080, 25 fps, silent) was rendered straight from the live Flow Stage page with `visualizer/video/render.mjs` and ffmpeg. It plays the Hot lead run at 2x, then the HubSpot-fails run at 4x, with captions that follow the phase on screen, an intro card, and an outro card with `n8n.aiopsexpert.com`. The sample counters are hidden so they are not read as results.
+
+Re-render after any page change:
+1. `node visualizer/build.mjs`
+2. `mkdir frames && node visualizer/video/render.mjs "$(npm root -g)" frames 30`
+3. `ffmpeg -framerate 25 -i frames/%05d.jpg -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -movflags +faststart out.mp4`
+
+Voiceover: the five lines above can be recorded or generated later and laid over the MP4. The captions already carry the message, so the video works muted.
